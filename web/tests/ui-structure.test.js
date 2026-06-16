@@ -57,4 +57,33 @@ describe('upload-first UI structure', () => {
     assert.match(css, /@media \(min-width: 901px\)[\s\S]*\.item-list\s*{[\s\S]*overflow-y:\s*auto/);
     assert.match(css, /@media \(min-width: 901px\)[\s\S]*\.item-list\s*{[\s\S]*scrollbar-gutter:\s*stable/);
   });
+
+  it('provides a guided overlay anchored to screen locations', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+    assert.match(html, /id="openHelpButton"/);
+    assert.match(html, /aria-controls="helpOverlay"/);
+    assert.match(html, /id="helpOverlay"[^>]*hidden/);
+    assert.doesNotMatch(html, /role="dialog"/);
+    assert.match(html, /id="helpSpotlight"/);
+    assert.match(html, /id="helpCallout"/);
+    assert.match(html, /id="helpStepTitle"/);
+    assert.match(html, /id="helpStepBody"/);
+    assert.match(html, /id="helpStepCount"/);
+    assert.match(html, /id="prevHelpButton"/);
+    assert.match(html, /id="nextHelpButton"/);
+    assert.match(html, /id="closeHelpButton"/);
+
+    assert.match(css, /\.help-overlay\s*{/);
+    assert.match(css, /\.help-spotlight\s*{/);
+    assert.match(css, /\.help-callout\s*{/);
+    assert.match(app, /openHelpButton/);
+    assert.match(app, /closeHelpButton/);
+    assert.match(app, /helpSteps/);
+    assert.match(app, /positionHelpOverlay/);
+    assert.match(app, /function openHelp/);
+    assert.match(app, /function closeHelp/);
+  });
 });

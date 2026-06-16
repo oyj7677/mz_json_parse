@@ -20,23 +20,69 @@ const state = {
   translateFilenames: true
 };
 
+const helpSteps = [
+  {
+    body: '여러 JSON 파일을 한 번에 선택하면 등록 목록에 추가됩니다.',
+    selector: '.upload-strip',
+    title: 'JSON 파일 업로드'
+  },
+  {
+    body: '영어 변환은 다운로드 파일명에만 적용되고 JSON 내용은 바꾸지 않습니다.',
+    selector: '.inline-option',
+    title: '다운로드 옵션'
+  },
+  {
+    body: '등록된 파일명을 누르면 오른쪽 상세 카드 위치로 바로 이동합니다.',
+    selector: '.quick-title-panel',
+    title: '빠른 선택'
+  },
+  {
+    body: '파일명을 직접 수정하거나 필요 없는 항목을 삭제하고 JSON 내용을 미리 볼 수 있습니다.',
+    selector: '.side-panel',
+    title: '등록 목록'
+  },
+  {
+    body: '등록된 항목을 포맷팅된 JSON 파일로 묶어 ZIP으로 다운로드합니다.',
+    selector: '#downloadAllButton',
+    title: '모두 다운로드'
+  },
+  {
+    body: '로그 문자열에서 JSON을 직접 추출해야 할 때만 열어 사용합니다.',
+    selector: '#togglePasteButton',
+    title: '붙여넣기로 등록'
+  }
+];
+
 const elements = {
   clearInputButton: document.querySelector('#clearInputButton'),
   clearItemsButton: document.querySelector('#clearItemsButton'),
+  closeHelpButton: document.querySelector('#closeHelpButton'),
   downloadAllButton: document.querySelector('#downloadAllButton'),
   extractButton: document.querySelector('#extractButton'),
+  helpCallout: document.querySelector('#helpCallout'),
+  helpOverlay: document.querySelector('#helpOverlay'),
+  helpSpotlight: document.querySelector('#helpSpotlight'),
+  helpStepBody: document.querySelector('#helpStepBody'),
+  helpStepCount: document.querySelector('#helpStepCount'),
+  helpStepTitle: document.querySelector('#helpStepTitle'),
   input: document.querySelector('#jsonInput'),
   inputStatus: document.querySelector('#inputStatus'),
   itemList: document.querySelector('#itemList'),
   jsonFileInput: document.querySelector('#jsonFileInput'),
+  openHelpButton: document.querySelector('#openHelpButton'),
   pastePanel: document.querySelector('#pastePanel'),
+  prevHelpButton: document.querySelector('#prevHelpButton'),
   quickTitleList: document.querySelector('#quickTitleList'),
   resultCount: document.querySelector('#resultCount'),
   summaryText: document.querySelector('#summaryText'),
+  nextHelpButton: document.querySelector('#nextHelpButton'),
   togglePasteButton: document.querySelector('#togglePasteButton'),
   translateToggle: document.querySelector('#translateToggle'),
   uploadStatus: document.querySelector('#uploadStatus')
 };
+
+let activeHelpStep = 0;
+let helpFocusReturnTarget = null;
 
 elements.pastePanel.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -78,7 +124,138 @@ elements.jsonFileInput.addEventListener('change', async () => {
   elements.jsonFileInput.value = '';
 });
 
+elements.openHelpButton.addEventListener('click', () => {
+  openHelp();
+});
+
+elements.closeHelpButton.addEventListener('click', () => {
+  closeHelp();
+});
+
+elements.prevHelpButton.addEventListener('click', () => {
+  showHelpStep(activeHelpStep - 1);
+});
+
+elements.nextHelpButton.addEventListener('click', () => {
+  if (activeHelpStep === helpSteps.length - 1) {
+    closeHelp();
+    return;
+  }
+
+  showHelpStep(activeHelpStep + 1);
+});
+
+elements.helpOverlay.addEventListener('click', (event) => {
+  if (event.target instanceof HTMLElement && event.target.dataset.helpClose !== undefined) {
+    closeHelp();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !elements.helpOverlay.hidden) {
+    closeHelp();
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (!elements.helpOverlay.hidden) {
+    positionHelpOverlay();
+  }
+});
+
+window.addEventListener('scroll', () => {
+  if (!elements.helpOverlay.hidden) {
+    positionHelpOverlay();
+  }
+}, true);
+
 render();
+
+function openHelp() {
+  helpFocusReturnTarget = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : elements.openHelpButton;
+  activeHelpStep = 0;
+  elements.helpOverlay.hidden = false;
+  elements.openHelpButton.setAttribute('aria-expanded', 'true');
+  document.body.classList.add('help-open');
+  showHelpStep(activeHelpStep);
+  elements.helpCallout.focus();
+}
+
+function closeHelp() {
+  elements.helpOverlay.hidden = true;
+  elements.openHelpButton.setAttribute('aria-expanded', 'false');
+  document.body.classList.remove('help-open');
+  elements.helpSpotlight.removeAttribute('style');
+  elements.helpCallout.removeAttribute('style');
+  helpFocusReturnTarget?.focus();
+  helpFocusReturnTarget = null;
+}
+
+function showHelpStep(index) {
+  activeHelpStep = Math.min(Math.max(index, 0), helpSteps.length - 1);
+  const step = helpSteps[activeHelpStep];
+
+  elements.helpStepTitle.textContent = step.title;
+  elements.helpStepBody.textContent = step.body;
+  elements.helpStepCount.textContent = `${activeHelpStep + 1} / ${helpSteps.length}`;
+  elements.prevHelpButton.disabled = activeHelpStep === 0;
+  elements.nextHelpButton.textContent = activeHelpStep === helpSteps.length - 1 ? '종료' : '다음';
+
+  const target = document.querySelector(step.selector);
+  target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  requestAnimationFrame(() => {
+    positionHelpOverlay();
+  });
+}
+
+function positionHelpOverlay() {
+  const step = helpSteps[activeHelpStep];
+  const target = document.querySelector(step.selector);
+
+  if (!target) {
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const padding = 8;
+  const spotlightTop = Math.max(rect.top - padding, 8);
+  const spotlightLeft = Math.max(rect.left - padding, 8);
+  const spotlightWidth = Math.min(rect.width + padding * 2, window.innerWidth - spotlightLeft - 8);
+  const spotlightHeight = Math.min(rect.height + padding * 2, window.innerHeight - spotlightTop - 8);
+
+  Object.assign(elements.helpSpotlight.style, {
+    height: `${spotlightHeight}px`,
+    left: `${spotlightLeft}px`,
+    top: `${spotlightTop}px`,
+    width: `${spotlightWidth}px`
+  });
+
+  const calloutRect = elements.helpCallout.getBoundingClientRect();
+  const maxLeft = window.innerWidth - calloutRect.width - 16;
+  const maxTop = window.innerHeight - calloutRect.height - 16;
+  let left = Math.min(Math.max(rect.left, 16), Math.max(maxLeft, 16));
+  let top = rect.bottom + 14;
+
+  if (top > maxTop) {
+    top = rect.top - calloutRect.height - 14;
+  }
+
+  if (top < 16) {
+    top = Math.min(Math.max(rect.top, 16), Math.max(maxTop, 16));
+    left = rect.right + 14;
+    if (left > maxLeft) {
+      left = rect.left - calloutRect.width - 14;
+    }
+    left = Math.min(Math.max(left, 16), Math.max(maxLeft, 16));
+  }
+
+  Object.assign(elements.helpCallout.style, {
+    left: `${left}px`,
+    top: `${top}px`
+  });
+}
 
 async function registerInput() {
   const input = elements.input.value;

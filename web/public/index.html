@@ -14,9 +14,20 @@
           <h1>JSON Formatter</h1>
           <p class="summary" id="summaryText">등록된 JSON 0개</p>
         </div>
-        <button class="primary-action" id="downloadAllButton" type="button" disabled>
-          모두 다운로드
-        </button>
+        <div class="topbar-actions">
+          <button
+            class="ghost-button"
+            id="openHelpButton"
+            type="button"
+            aria-expanded="false"
+            aria-controls="helpOverlay"
+          >
+            How to
+          </button>
+          <button class="primary-action" id="downloadAllButton" type="button" disabled>
+            모두 다운로드
+          </button>
+        </div>
       </header>
 
       <section class="workspace" aria-label="JSON formatter workspace">
@@ -99,5 +110,28 @@
         </aside>
       </section>
     </main>
+    <div class="help-overlay" id="helpOverlay" hidden>
+      <button class="help-backdrop" type="button" data-help-close aria-label="도움말 닫기"></button>
+      <div class="help-spotlight" id="helpSpotlight" aria-hidden="true"></div>
+      <section
+        class="help-callout"
+        id="helpCallout"
+        role="region"
+        tabindex="-1"
+        aria-live="polite"
+        aria-labelledby="helpStepTitle"
+      >
+        <div class="help-callout-head">
+          <span class="help-step-count" id="helpStepCount">1 / 6</span>
+          <button class="icon-button" id="closeHelpButton" type="button" aria-label="도움말 닫기">X</button>
+        </div>
+        <h2 id="helpStepTitle">JSON 파일 업로드</h2>
+        <p id="helpStepBody">여러 JSON 파일을 한 번에 선택하면 목록에 추가됩니다.</p>
+        <div class="help-callout-actions">
+          <button class="ghost-button" id="prevHelpButton" type="button">이전</button>
+          <button class="primary-action" id="nextHelpButton" type="button">다음</button>
+        </div>
+      </section>
+    </div>
   </body>
 </html>
