@@ -16,7 +16,7 @@ window/   로컬 Windows 앱 작업 폴더, GitHub 배포 대상 제외
 Production URL:
 
 ```text
-https://json-parse-formatter.vercel.app/
+https://mz-json.vercel.app/
 ```
 
 Vercel에 배포할 때는 프로젝트의 Root Directory를 반드시 `web`으로 설정합니다.

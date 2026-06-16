@@ -5,13 +5,13 @@
 현재 Production URL:
 
 ```text
-https://json-parse-formatter.vercel.app/
+https://mz-json.vercel.app/
 ```
 
 Vercel Project:
 
 ```text
-oyj-s-projects/json-parse-formatter
+oyj-s-projects/mz-json
 ```
 
 GitHub Repository:
