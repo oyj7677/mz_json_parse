@@ -14,6 +14,12 @@ Vercel Project:
 oyj-s-projects/json-parse-formatter
 ```
 
+GitHub Repository:
+
+```text
+https://github.com/oyj7677/mz_json_parse
+```
+
 ## 배포 구조
 
 ```text
