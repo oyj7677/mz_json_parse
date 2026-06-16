@@ -1,0 +1,38 @@
+# Runtime logs and local tool state
+logs/
+web/logs/
+*.log
+*.log.gz
+.superpowers/
+web/.superpowers/
+web/docs/superpowers/
+
+# Vercel local state
+.vercel/
+web/.vercel/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Windows desktop build outputs
+window/
+window/dist/
+**/bin/
+**/obj/
+
+# Visual Studio / IDE local state
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.rsuser
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

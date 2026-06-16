@@ -1,0 +1,15 @@
+{
+  "name": "json-parse-format-download-tool",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy:vercel": "npx vercel --prod",
+    "dev:vercel": "npx vercel dev",
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,408 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --panel-soft: #f8fafc;
+  --text: #151922;
+  --muted: #657184;
+  --line: #dce3ec;
+  --line-strong: #c5ceda;
+  --blue: #1268d6;
+  --blue-dark: #0d4faa;
+  --green: #087f5b;
+  --red: #b42318;
+  --amber: #a15c07;
+  --shadow: 0 16px 40px rgba(24, 35, 53, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 760;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 720;
+}
+
+.summary,
+.option-band p,
+.result-head p,
+.inline-status,
+.item-meta,
+.empty-state {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.05fr) minmax(420px, 0.95fr);
+  gap: 18px;
+  min-height: 0;
+}
+
+.input-panel,
+.side-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.input-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header,
+.result-head,
+.option-band,
+.action-row,
+.upload-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-header label {
+  font-weight: 720;
+}
+
+textarea {
+  width: 100%;
+  min-height: 560px;
+  resize: vertical;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+  color: var(--text);
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  outline: none;
+}
+
+textarea:focus,
+.filename-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(18, 104, 214, 0.14);
+}
+
+.primary-action,
+.ghost-button,
+.file-picker {
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.primary-action {
+  background: var(--blue);
+  color: white;
+}
+
+.primary-action:hover:not(:disabled) {
+  background: var(--blue-dark);
+}
+
+.ghost-button {
+  border: 1px solid var(--line-strong);
+  background: white;
+  color: var(--text);
+}
+
+.upload-strip {
+  justify-content: flex-start;
+  min-height: 50px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel-soft);
+}
+
+.upload-strip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-strip span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.file-picker {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.option-band,
+.result-head {
+  padding: 16px;
+}
+
+.option-band {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.result-head {
+  border-bottom: 1px solid var(--line);
+}
+
+.switch {
+  display: inline-grid;
+  grid-template-columns: 44px auto;
+  gap: 8px;
+  align-items: center;
+  user-select: none;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch span {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #aab4c0;
+  transition: background 140ms ease;
+}
+
+.switch span::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  content: "";
+  transition: transform 140ms ease;
+}
+
+.switch input:checked + span {
+  background: var(--blue);
+}
+
+.switch input:checked + span::after {
+  transform: translateX(20px);
+}
+
+.switch strong {
+  font-size: 13px;
+}
+
+.item-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 360px;
+  max-height: calc(100vh - 190px);
+  overflow: auto;
+}
+
+.empty-state {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.json-item,
+.error-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px;
+}
+
+.item-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.item-title {
+  min-width: 0;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.item-tools {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.filename-input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 11px;
+  background: white;
+  outline: none;
+}
+
+.status-pill {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #eef6ff;
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill.warning {
+  background: #fff3df;
+  color: var(--amber);
+}
+
+.status-pill.error {
+  background: #ffeceb;
+  color: var(--red);
+}
+
+.status-pill.ok {
+  background: #e7f8f1;
+  color: var(--green);
+}
+
+.error-item {
+  background: #fff8f7;
+}
+
+.json-preview {
+  max-height: 150px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfe;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 18px;
+  }
+
+  .topbar,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workspace {
+    display: grid;
+  }
+
+  textarea {
+    min-height: 340px;
+  }
+
+  .item-list {
+    max-height: none;
+  }
+}

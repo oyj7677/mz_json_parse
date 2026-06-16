@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JSON Formatter</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>JSON Formatter</h1>
+          <p class="summary" id="summaryText">등록된 JSON 0개</p>
+        </div>
+        <button class="primary-action" id="downloadAllButton" type="button" disabled>
+          모두 다운로드
+        </button>
+      </header>
+
+      <section class="workspace" aria-label="JSON formatter workspace">
+        <form class="input-panel" id="pasteForm">
+          <div class="panel-header">
+            <label for="jsonInput">붙여넣기</label>
+            <button class="ghost-button" id="clearInputButton" type="button">비우기</button>
+          </div>
+          <div class="upload-strip">
+            <label class="file-picker" for="jsonFileInput">JSON 파일 선택</label>
+            <input id="jsonFileInput" type="file" accept=".json,application/json" multiple>
+            <span id="uploadStatus" aria-live="polite">파일을 선택하면 목록에 추가됩니다.</span>
+          </div>
+          <textarea
+            id="jsonInput"
+            spellcheck="false"
+            placeholder='2026-05-07 INFO result={"recognitionText":"안녕하세요 세계","score":0.98}'
+          ></textarea>
+          <div class="action-row">
+            <button class="primary-action" id="extractButton" type="submit">추출 등록</button>
+            <p class="inline-status" id="inputStatus" aria-live="polite"></p>
+          </div>
+        </form>
+
+        <aside class="side-panel">
+          <div class="option-band">
+            <div>
+              <h2>다운로드 옵션</h2>
+              <p>파일명 전용</p>
+            </div>
+            <label class="switch">
+              <input id="translateToggle" type="checkbox" checked>
+              <span></span>
+              <strong>영어 변환</strong>
+            </label>
+          </div>
+
+          <div class="result-head">
+            <div>
+              <h2>등록 목록</h2>
+              <p id="resultCount">정상 0개, 오류 0개</p>
+            </div>
+            <button class="ghost-button" id="clearItemsButton" type="button" disabled>목록 비우기</button>
+          </div>
+
+          <div class="item-list" id="itemList" aria-live="polite">
+            <div class="empty-state">JSON을 등록하면 파일 목록이 여기에 표시됩니다.</div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

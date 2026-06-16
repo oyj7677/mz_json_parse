@@ -1,0 +1,5 @@
+logs
+.superpowers
+docs/superpowers
+tests
+*.log
