@@ -13,6 +13,12 @@ window/   로컬 Windows 앱 작업 폴더, GitHub 배포 대상 제외
 
 웹앱은 붙여넣은 로그나 업로드한 JSON 파일에서 JSON을 등록하고, `recognitionText` 기반 파일명으로 정리한 뒤 ZIP 파일로 다운로드합니다.
 
+Production URL:
+
+```text
+https://json-parse-formatter.vercel.app/
+```
+
 Vercel에 배포할 때는 프로젝트의 Root Directory를 반드시 `web`으로 설정합니다.
 
 자세한 배포 방법:

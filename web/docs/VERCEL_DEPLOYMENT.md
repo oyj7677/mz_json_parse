@@ -2,6 +2,18 @@
 
 이 문서는 JSON Formatter 웹앱을 Vercel에 배포하는 방법을 정리합니다.
 
+현재 Production URL:
+
+```text
+https://json-parse-formatter.vercel.app/
+```
+
+Vercel Project:
+
+```text
+oyj-s-projects/json-parse-formatter
+```
+
 ## 배포 구조
 
 ```text
