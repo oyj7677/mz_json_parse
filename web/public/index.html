@@ -20,29 +20,30 @@
       </header>
 
       <section class="workspace" aria-label="JSON formatter workspace">
-        <form class="input-panel" id="pasteForm">
+        <section class="input-panel upload-panel" id="uploadPanel">
           <div class="panel-header">
-            <label for="jsonInput">붙여넣기</label>
-            <button class="ghost-button" id="clearInputButton" type="button">비우기</button>
+            <div>
+              <h2>JSON 파일 업로드</h2>
+              <p class="panel-copy">여러 파일을 한 번에 추가하고, 왼쪽 빠른 목록에서 필요한 항목을 바로 찾으세요.</p>
+            </div>
+            <button
+              class="ghost-button"
+              id="togglePasteButton"
+              type="button"
+              aria-expanded="false"
+              aria-controls="pastePanel"
+            >
+              붙여넣기로 등록
+            </button>
           </div>
+
           <div class="upload-strip">
             <label class="file-picker" for="jsonFileInput">JSON 파일 선택</label>
             <input id="jsonFileInput" type="file" accept=".json,application/json" multiple>
             <span id="uploadStatus" aria-live="polite">파일을 선택하면 목록에 추가됩니다.</span>
           </div>
-          <textarea
-            id="jsonInput"
-            spellcheck="false"
-            placeholder='2026-05-07 INFO result={"recognitionText":"안녕하세요 세계","score":0.98}'
-          ></textarea>
-          <div class="action-row">
-            <button class="primary-action" id="extractButton" type="submit">추출 등록</button>
-            <p class="inline-status" id="inputStatus" aria-live="polite"></p>
-          </div>
-        </form>
 
-        <aside class="side-panel">
-          <div class="option-band">
+          <div class="option-band inline-option">
             <div>
               <h2>다운로드 옵션</h2>
               <p>파일명 전용</p>
@@ -54,6 +55,36 @@
             </label>
           </div>
 
+          <form class="paste-panel" id="pastePanel" hidden>
+            <div class="panel-header">
+              <label for="jsonInput">JSON 문자열 붙여넣기</label>
+              <button class="ghost-button" id="clearInputButton" type="button">비우기</button>
+            </div>
+            <textarea
+              id="jsonInput"
+              spellcheck="false"
+              placeholder='2026-05-07 INFO result={"recognitionText":"안녕하세요 세계","score":0.98}'
+            ></textarea>
+            <div class="action-row">
+              <button class="primary-action" id="extractButton" type="submit">추출 등록</button>
+              <p class="inline-status" id="inputStatus" aria-live="polite"></p>
+            </div>
+          </form>
+
+          <div class="quick-title-panel">
+            <div class="panel-header">
+              <div>
+                <h2>빠른 선택</h2>
+                <p class="panel-copy">등록된 파일명을 눌러 오른쪽 상세 항목으로 이동합니다.</p>
+              </div>
+            </div>
+            <div class="quick-title-list" id="quickTitleList" aria-live="polite">
+              <div class="empty-state compact-empty">JSON을 등록하면 파일명이 여기에 표시됩니다.</div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-panel">
           <div class="result-head">
             <div>
               <h2>등록 목록</h2>
@@ -63,7 +94,7 @@
           </div>
 
           <div class="item-list" id="itemList" aria-live="polite">
-            <div class="empty-state">JSON을 등록하면 파일 목록이 여기에 표시됩니다.</div>
+            <div class="empty-state">JSON을 등록하면 상세 목록이 여기에 표시됩니다.</div>
           </div>
         </aside>
       </section>

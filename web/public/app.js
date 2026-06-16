@@ -13,6 +13,7 @@ import {
 } from './core.js';
 
 const state = {
+  activeItemId: null,
   errors: [],
   items: [],
   nextId: 1,
@@ -28,14 +29,16 @@ const elements = {
   inputStatus: document.querySelector('#inputStatus'),
   itemList: document.querySelector('#itemList'),
   jsonFileInput: document.querySelector('#jsonFileInput'),
-  pasteForm: document.querySelector('#pasteForm'),
+  pastePanel: document.querySelector('#pastePanel'),
+  quickTitleList: document.querySelector('#quickTitleList'),
   resultCount: document.querySelector('#resultCount'),
   summaryText: document.querySelector('#summaryText'),
+  togglePasteButton: document.querySelector('#togglePasteButton'),
   translateToggle: document.querySelector('#translateToggle'),
   uploadStatus: document.querySelector('#uploadStatus')
 };
 
-elements.pasteForm.addEventListener('submit', async (event) => {
+elements.pastePanel.addEventListener('submit', async (event) => {
   event.preventDefault();
   await registerInput();
 });
@@ -49,6 +52,17 @@ elements.clearItemsButton.addEventListener('click', () => {
   state.items = [];
   state.errors = [];
   render();
+});
+
+elements.togglePasteButton.addEventListener('click', () => {
+  const willShow = elements.pastePanel.hidden;
+  elements.pastePanel.hidden = !willShow;
+  elements.togglePasteButton.setAttribute('aria-expanded', String(willShow));
+  elements.togglePasteButton.textContent = willShow ? '붙여넣기 닫기' : '붙여넣기로 등록';
+
+  if (willShow) {
+    elements.input.focus();
+  }
 });
 
 elements.translateToggle.addEventListener('change', () => {
@@ -197,35 +211,83 @@ function applyFilenameDedupe() {
 function render() {
   const validCount = state.items.length;
   const errorCount = state.errors.length;
+  ensureActiveItem();
 
   elements.summaryText.textContent = `등록된 JSON ${validCount}개`;
   elements.resultCount.textContent = `정상 ${validCount}개, 오류 ${errorCount}개`;
   elements.downloadAllButton.disabled = validCount === 0;
   elements.clearItemsButton.disabled = validCount === 0 && errorCount === 0;
 
-  const fragment = document.createDocumentFragment();
+  const quickTitleFragment = document.createDocumentFragment();
+  const itemFragment = document.createDocumentFragment();
+
+  if (validCount === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state compact-empty';
+    empty.textContent = 'JSON 파일을 업로드하면 파일명이 여기에 표시됩니다.';
+    quickTitleFragment.append(empty);
+  }
 
   if (validCount === 0 && errorCount === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = 'JSON을 등록하면 파일 목록이 여기에 표시됩니다.';
-    fragment.append(empty);
+    empty.textContent = 'JSON을 등록하면 상세 목록이 여기에 표시됩니다.';
+    itemFragment.append(empty);
   }
 
   for (const item of state.items) {
-    fragment.append(renderItem(item));
+    quickTitleFragment.append(renderQuickTitleRow(item));
+    itemFragment.append(renderItem(item));
   }
 
   for (const error of state.errors) {
-    fragment.append(renderError(error));
+    itemFragment.append(renderError(error));
   }
 
-  elements.itemList.replaceChildren(fragment);
+  elements.quickTitleList.replaceChildren(quickTitleFragment);
+  elements.itemList.replaceChildren(itemFragment);
+}
+
+function renderQuickTitleRow(item) {
+  const wrapper = document.createElement('article');
+  wrapper.className = `quick-title-row${item.id === state.activeItemId ? ' active' : ''}`;
+  wrapper.dataset.quickTitleId = String(item.id);
+
+  const selectButton = document.createElement('button');
+  selectButton.className = 'quick-title-button';
+  selectButton.type = 'button';
+  selectButton.setAttribute('aria-current', item.id === state.activeItemId ? 'true' : 'false');
+  selectButton.addEventListener('click', () => {
+    selectItem(item.id);
+  });
+
+  const title = document.createElement('span');
+  title.className = 'quick-title-text';
+  title.textContent = item.filename;
+  selectButton.append(title);
+
+  const tools = document.createElement('div');
+  tools.className = 'item-tools';
+
+  const removeButton = document.createElement('button');
+  removeButton.className = 'icon-button';
+  removeButton.type = 'button';
+  removeButton.title = '삭제';
+  removeButton.textContent = 'X';
+  removeButton.addEventListener('click', () => {
+    removeItem(item.id);
+  });
+
+  tools.append(removeButton);
+  wrapper.append(selectButton, tools);
+
+  return wrapper;
 }
 
 function renderItem(item) {
   const wrapper = document.createElement('article');
-  wrapper.className = 'json-item';
+  wrapper.className = `json-item${item.id === state.activeItemId ? ' active' : ''}`;
+  wrapper.dataset.detailItemId = String(item.id);
 
   const topLine = document.createElement('div');
   topLine.className = 'item-topline';
@@ -243,9 +305,7 @@ function renderItem(item) {
   removeButton.title = '삭제';
   removeButton.textContent = 'X';
   removeButton.addEventListener('click', () => {
-    state.items = state.items.filter((candidate) => candidate.id !== item.id);
-    applyFilenameDedupe();
-    render();
+    removeItem(item.id);
   });
 
   tools.append(removeButton);
@@ -258,7 +318,13 @@ function renderItem(item) {
   filenameInput.addEventListener('input', (event) => {
     item.filename = event.target.value;
     item.manuallyEdited = true;
-    title.textContent = event.target.value || `${defaultFilenameBase(item.id)}.json`;
+    const fallbackName = `${defaultFilenameBase(item.id)}.json`;
+    const displayName = event.target.value || fallbackName;
+    title.textContent = displayName;
+    const quickTitle = document.querySelector(`[data-quick-title-id="${item.id}"] .quick-title-text`);
+    if (quickTitle) {
+      quickTitle.textContent = displayName;
+    }
   });
   filenameInput.addEventListener('blur', (event) => {
     item.filename = event.target.value;
@@ -292,6 +358,36 @@ function renderItem(item) {
   wrapper.append(preview);
 
   return wrapper;
+}
+
+function ensureActiveItem() {
+  if (state.items.length === 0) {
+    state.activeItemId = null;
+    return;
+  }
+
+  const activeExists = state.items.some((item) => item.id === state.activeItemId);
+  if (!activeExists) {
+    state.activeItemId = state.items[0].id;
+  }
+}
+
+function selectItem(id) {
+  state.activeItemId = id;
+  render();
+  requestAnimationFrame(() => {
+    const target = document.querySelector(`[data-detail-item-id="${id}"]`);
+    target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
+
+function removeItem(id) {
+  state.items = state.items.filter((candidate) => candidate.id !== id);
+  if (state.activeItemId === id) {
+    state.activeItemId = state.items[0]?.id ?? null;
+  }
+  applyFilenameDedupe();
+  render();
 }
 
 function renderError(error) {
