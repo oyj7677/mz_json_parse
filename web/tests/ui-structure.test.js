@@ -110,6 +110,15 @@ describe('upload-first UI structure', () => {
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
+
+    for (const contract of [
+      'toggleStringResourceSheet',
+      'selectedStringResourceRows',
+      'setStringResourceUploadStatus',
+      'parseStringResourceWorkbookFile'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
   });
 
   it('declares local SheetJS vendor loading for Excel parsing', async () => {

@@ -531,11 +531,39 @@ function showStringResourceTool() {
 
 async function registerStringResourceFiles(fileList) {
   const files = Array.from(fileList ?? []);
-  setStringResourceUploadStatus(
-    files.length === 0
-      ? '선택된 엑셀 파일이 없습니다.'
-      : `${files.length.toLocaleString()}개 파일이 선택되었습니다. 다음 단계에서 등록 기능을 연결합니다.`
-  );
+  if (files.length === 0) {
+    setStringResourceUploadStatus('선택된 엑셀 파일이 없습니다.');
+    return;
+  }
+
+  let addedCount = 0;
+  let errorCount = 0;
+
+  for (const file of files) {
+    try {
+      const workbook = await parseStringResourceWorkbookFile(file);
+      const normalized = normalizeStringResourceWorkbook(workbook, file.name);
+      state.stringResource.files.push({
+        fileName: file.name,
+        rows: normalized.rows,
+        sheetSummaries: normalized.sheetSummaries
+      });
+
+      for (const summary of normalized.sheetSummaries) {
+        if (summary.isCandidate) {
+          state.stringResource.selectedSheetIds.add(stringResourceSheetId(file.name, summary.name));
+        }
+      }
+
+      addedCount += 1;
+    } catch (error) {
+      errorCount += 1;
+      state.stringResource.errors.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  state.stringResource.rows = state.stringResource.files.flatMap((file) => file.rows);
+  setStringResourceUploadStatus(`${addedCount}개 파일 등록, 오류 ${errorCount}개`);
   renderStringResource();
 }
 
@@ -546,7 +574,60 @@ function renderStringResource() {
   renderStringResourceResults();
 }
 
-function renderStringResourceSheets() {}
+function renderStringResourceSheets() {
+  elements.stringResourceSheetList.replaceChildren();
+
+  if (state.stringResource.files.length === 0) {
+    elements.stringResourceSheetList.innerHTML = '<div class="empty-state compact-empty">엑셀을 업로드하면 시트 목록이 표시됩니다.</div>';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const file of state.stringResource.files) {
+    const group = document.createElement('section');
+    group.className = 'string-resource-sheet-group';
+
+    const title = document.createElement('h3');
+    title.textContent = file.fileName;
+    group.append(title);
+
+    for (const summary of file.sheetSummaries) {
+      const sheetId = stringResourceSheetId(file.fileName, summary.name);
+      const label = document.createElement('label');
+      label.className = 'string-resource-sheet-row';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = state.stringResource.selectedSheetIds.has(sheetId);
+      checkbox.addEventListener('change', () => toggleStringResourceSheet(sheetId));
+
+      const text = document.createElement('span');
+      text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${summary.isCandidate ? '자동 감지' : '수동 선택 가능'}`;
+
+      label.append(checkbox, text);
+      group.append(label);
+    }
+
+    fragment.append(group);
+  }
+
+  elements.stringResourceSheetList.append(fragment);
+}
+
+function toggleStringResourceSheet(sheetId) {
+  if (state.stringResource.selectedSheetIds.has(sheetId)) {
+    state.stringResource.selectedSheetIds.delete(sheetId);
+  } else {
+    state.stringResource.selectedSheetIds.add(sheetId);
+  }
+  renderStringResource();
+}
+
+function selectedStringResourceRows() {
+  return state.stringResource.rows.filter((row) =>
+    state.stringResource.selectedSheetIds.has(stringResourceSheetId(row.fileName, row.sheetName))
+  );
+}
 
 function renderStringResourceResults() {}
 
@@ -559,6 +640,10 @@ function closeStringResourceDetail() {
 
 function setStringResourceUploadStatus(message) {
   elements.stringResourceUploadStatus.textContent = message;
+}
+
+function stringResourceSheetId(fileName, sheetName) {
+  return `${fileName}::${sheetName}`;
 }
 
 async function loadMappingData() {
