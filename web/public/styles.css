@@ -336,6 +336,79 @@ textarea:focus,
   opacity: 0.58;
 }
 
+.string-resource-upload-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(231, 235, 241, 0.82);
+  backdrop-filter: blur(1.5px);
+}
+
+.string-resource-upload-overlay[hidden] {
+  display: none;
+}
+
+.string-resource-upload-overlay-card {
+  display: grid;
+  justify-items: center;
+  width: min(320px, 100%);
+  gap: 10px;
+  border: 1px solid rgba(216, 224, 234, 0.95);
+  border-radius: 8px;
+  padding: 22px 20px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 42px rgba(16, 24, 40, 0.16);
+  text-align: center;
+}
+
+.string-resource-upload-ring {
+  --string-resource-upload-progress: 0%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: conic-gradient(var(--blue) 0 var(--string-resource-upload-progress), #d8e0ea var(--string-resource-upload-progress) 100%);
+}
+
+.string-resource-upload-ring::after {
+  content: '';
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: white;
+}
+
+.string-resource-upload-ring-fill {
+  display: none;
+}
+
+.string-resource-upload-percent {
+  position: absolute;
+  z-index: 1;
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+#stringResourceUploadOverlayTitle {
+  font-size: 16px;
+  font-weight: 850;
+}
+
+#stringResourceUploadOverlayDetail {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .file-picker {
   display: inline-grid;
   place-items: center;

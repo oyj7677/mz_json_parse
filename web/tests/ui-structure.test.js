@@ -72,6 +72,11 @@ describe('upload-first UI structure', () => {
       'stringResourceUploadProgressBar',
       'stringResourceUploadProgressFill',
       'stringResourceUploadProgressText',
+      'stringResourceUploadOverlay',
+      'stringResourceUploadOverlayProgress',
+      'stringResourceUploadOverlayPercent',
+      'stringResourceUploadOverlayTitle',
+      'stringResourceUploadOverlayDetail',
       'stringResourceSheetPanel',
       'stringResourceSheetList',
       'stringResourceSearchInput',
@@ -97,6 +102,11 @@ describe('upload-first UI structure', () => {
       '.string-resource-upload-progress',
       '.string-resource-progress-track',
       '.string-resource-progress-fill',
+      '.string-resource-upload-overlay',
+      '.string-resource-upload-overlay-card',
+      '.string-resource-upload-ring',
+      '.string-resource-upload-ring-fill',
+      '.string-resource-upload-percent',
       '.string-resource-sheet-panel',
       '.string-resource-results',
       '.string-resource-table-shell',
@@ -127,10 +137,17 @@ describe('upload-first UI structure', () => {
       'setStringResourceUploadProgress',
       'finishStringResourceUploadProgress',
       'setStringResourceUploadControlsDisabled',
+      'stringResourceUploadOverlay',
+      'stringResourceUploadOverlayProgress',
+      'stringResourceUploadOverlayPercent',
+      'stringResourceUploadOverlayTitle',
+      'stringResourceUploadOverlayDetail',
       'parseStringResourceWorkbookFile'
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
+
+    assert.match(app, /--string-resource-upload-progress/);
 
     for (const contract of [
       'renderStringResourceTableHeader',

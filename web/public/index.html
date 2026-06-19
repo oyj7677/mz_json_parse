@@ -501,8 +501,24 @@
           <div class="string-resource-detail-body" id="stringResourceDetailBody"></div>
         </section>
       </div>
+      <div class="string-resource-upload-overlay" id="stringResourceUploadOverlay" role="status" aria-live="polite" hidden>
+        <section class="string-resource-upload-overlay-card" aria-label="엑셀 업로드 진행 상태">
+          <div
+            class="string-resource-upload-ring"
+            id="stringResourceUploadOverlayProgress"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="string-resource-upload-ring-fill"></span>
+            <span class="string-resource-upload-percent" id="stringResourceUploadOverlayPercent">0%</span>
+          </div>
+          <strong id="stringResourceUploadOverlayTitle">엑셀 분석 중</strong>
+          <span id="stringResourceUploadOverlayDetail">0/0</span>
+        </section>
+      </div>
     </main>
-
     <div class="help-overlay" id="helpOverlay" hidden>
       <button class="help-backdrop" type="button" data-help-close aria-label="도움말 닫기"></button>
       <div class="help-spotlight" id="helpSpotlight" aria-hidden="true"></div>

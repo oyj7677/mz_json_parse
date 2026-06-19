@@ -194,6 +194,11 @@ const elements = {
   stringResourceTableHead: document.querySelector('#stringResourceTableHead'),
   stringResourceTableShell: document.querySelector('#stringResourceTableShell'),
   stringResourceUploadProgress: document.querySelector('#stringResourceUploadProgress'),
+  stringResourceUploadOverlay: document.querySelector('#stringResourceUploadOverlay'),
+  stringResourceUploadOverlayDetail: document.querySelector('#stringResourceUploadOverlayDetail'),
+  stringResourceUploadOverlayPercent: document.querySelector('#stringResourceUploadOverlayPercent'),
+  stringResourceUploadOverlayProgress: document.querySelector('#stringResourceUploadOverlayProgress'),
+  stringResourceUploadOverlayTitle: document.querySelector('#stringResourceUploadOverlayTitle'),
   stringResourceUploadProgressBar: document.querySelector('#stringResourceUploadProgressBar'),
   stringResourceUploadProgressFill: document.querySelector('#stringResourceUploadProgressFill'),
   stringResourceUploadProgressText: document.querySelector('#stringResourceUploadProgressText'),
@@ -1031,10 +1036,19 @@ function setStringResourceUploadControlsDisabled(isDisabled) {
 function setStringResourceUploadProgress({ completed, total, fileName, phase }) {
   const safeTotal = Math.max(total, 1);
   const percent = Math.min(100, Math.max(0, Math.round((completed / safeTotal) * 100)));
+  const progressText = `${Math.min(completed, total).toLocaleString()}/${total.toLocaleString()} ${phase} - ${fileName}`;
+
   elements.stringResourceUploadProgress.hidden = false;
   elements.stringResourceUploadProgressFill.style.width = `${percent}%`;
   elements.stringResourceUploadProgressBar.setAttribute('aria-valuenow', String(percent));
-  elements.stringResourceUploadProgressText.textContent = `${Math.min(completed, total).toLocaleString()}/${total.toLocaleString()} ${phase} - ${fileName}`;
+  elements.stringResourceUploadProgressText.textContent = progressText;
+
+  elements.stringResourceUploadOverlay.hidden = false;
+  elements.stringResourceUploadOverlayProgress.style.setProperty('--string-resource-upload-progress', `${percent}%`);
+  elements.stringResourceUploadOverlayProgress.setAttribute('aria-valuenow', String(percent));
+  elements.stringResourceUploadOverlayPercent.textContent = `${percent}%`;
+  elements.stringResourceUploadOverlayTitle.textContent = phase;
+  elements.stringResourceUploadOverlayDetail.textContent = progressText;
 }
 
 function finishStringResourceUploadProgress() {
@@ -1042,6 +1056,13 @@ function finishStringResourceUploadProgress() {
   elements.stringResourceUploadProgressFill.style.width = '0%';
   elements.stringResourceUploadProgressBar.setAttribute('aria-valuenow', '0');
   elements.stringResourceUploadProgressText.textContent = '0/0';
+
+  elements.stringResourceUploadOverlay.hidden = true;
+  elements.stringResourceUploadOverlayProgress.style.setProperty('--string-resource-upload-progress', '0%');
+  elements.stringResourceUploadOverlayProgress.setAttribute('aria-valuenow', '0');
+  elements.stringResourceUploadOverlayPercent.textContent = '0%';
+  elements.stringResourceUploadOverlayTitle.textContent = '\uC5D1\uC140 \uBD84\uC11D \uC911';
+  elements.stringResourceUploadOverlayDetail.textContent = '0/0';
 }
 
 function yieldToBrowser() {
