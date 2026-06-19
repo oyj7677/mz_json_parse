@@ -38,6 +38,13 @@
           <span>발화, 인텐션, 슬롯 기준 매핑 탐색</span>
           <em>사용하기</em>
         </button>
+
+        <button class="tool-card" id="openStringResourceButton" type="button">
+          <span class="tool-card-kicker">Strings</span>
+          <strong>String Resource Explorer</strong>
+          <span>다국어 문자열 리소스 검색</span>
+          <em>사용하기</em>
+        </button>
       </section>
     </main>
 
@@ -395,6 +402,92 @@
           </section>
         </section>
       </section>
+    </main>
+
+    <main class="app-shell tool-view" id="stringResourceApp" hidden>
+      <header class="topbar">
+        <div>
+          <h1>String Resource Explorer</h1>
+          <p class="summary" id="stringResourceCount">업로드된 엑셀 0개</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="backToHubFromStringResourceButton" type="button">
+            도구 목록
+          </button>
+        </div>
+      </header>
+
+      <section class="string-resource-workspace" aria-label="String Resource Explorer workspace">
+        <div class="string-resource-toolbar" aria-label="String Resource Explorer controls">
+          <div class="upload-strip">
+            <label class="file-picker" for="stringResourceFileInput">엑셀 파일 선택</label>
+            <input id="stringResourceFileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple>
+            <span id="stringResourceUploadStatus" aria-live="polite">다국어 문자열 리소스 엑셀을 선택하세요.</span>
+          </div>
+          <button class="ghost-button" id="stringResourceLanguageButton" type="button" aria-expanded="false" aria-controls="stringResourceLanguagePanel">
+            언어 컬럼
+          </button>
+          <button class="ghost-button" id="clearStringResourceButton" type="button" disabled>
+            목록 비우기
+          </button>
+        </div>
+
+        <aside class="string-resource-sheet-panel" id="stringResourceSheetPanel" aria-label="검색 대상 시트">
+          <div class="panel-header">
+            <div>
+              <h2>검색 대상 시트</h2>
+              <p class="panel-copy">자동 감지된 시트를 확인하고 필요하면 선택을 조정하세요.</p>
+            </div>
+          </div>
+          <div class="string-resource-sheet-list" id="stringResourceSheetList" aria-live="polite">
+            <div class="empty-state compact-empty">엑셀을 업로드하면 시트 목록이 표시됩니다.</div>
+          </div>
+        </aside>
+
+        <section class="string-resource-search-area" aria-label="String Resource search">
+          <label class="search-field" for="stringResourceSearchInput">
+            <span>문자열 내용 검색</span>
+            <input id="stringResourceSearchInput" type="search" autocomplete="off" placeholder="예: 도움말, Help*, CID_CMN* | 전신 스트레칭">
+          </label>
+          <p class="inline-status" id="stringResourceResultCount">검색 결과 0개</p>
+        </section>
+
+        <section class="string-resource-results" aria-live="polite">
+          <div class="empty-state" id="stringResourceEmptyState">문자열 내용을 검색하세요.</div>
+          <div class="string-resource-table-shell" id="stringResourceTableShell" hidden>
+            <table class="string-resource-table" id="stringResourceTable">
+              <thead id="stringResourceTableHead"></thead>
+              <tbody id="stringResourceTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="string-resource-language-panel" id="stringResourceLanguagePanel" hidden>
+          <div class="panel-header">
+            <div>
+              <h2>표시 언어</h2>
+              <p class="panel-copy">결과 표에 표시할 Android qualifier 컬럼을 선택하세요.</p>
+            </div>
+          </div>
+          <div id="stringResourceLanguageList"></div>
+        </aside>
+      </section>
+
+      <div class="string-resource-detail-modal" id="stringResourceDetailModal" role="dialog" aria-modal="true" aria-labelledby="stringResourceDetailTitle" hidden>
+        <button class="explorer-modal-backdrop" id="stringResourceDetailBackdrop" type="button" aria-label="String Resource 상세 닫기"></button>
+        <section class="explorer-modal-panel">
+          <div class="panel-header">
+            <div>
+              <h2 id="stringResourceDetailTitle">String Resource 상세</h2>
+              <p id="stringResourceDetailMeta">선택된 리소스가 없습니다.</p>
+            </div>
+            <button class="ghost-button" id="closeStringResourceDetailButton" type="button" aria-label="String Resource 상세 닫기">
+              닫기
+            </button>
+          </div>
+          <div class="string-resource-detail-body" id="stringResourceDetailBody"></div>
+        </section>
+      </div>
     </main>
 
     <div class="help-overlay" id="helpOverlay" hidden>

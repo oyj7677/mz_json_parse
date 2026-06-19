@@ -32,10 +32,12 @@ describe('upload-first UI structure', () => {
     assert.match(html, /id="backToHubButton"/);
     assert.match(html, /id="backToHubFromExplorerButton"/);
     assert.match(html, /id="backToHubFromMappingButton"/);
+    assert.match(html, /id="backToHubFromStringResourceButton"/);
     assert.match(html, /JSON Formatter/);
     assert.match(html, /JSON Explorer/);
     assert.match(html, /Mapping Table Explorer/);
     assert.match(html, /String Resource Explorer/);
+    assert.match(html, /다국어 문자열 리소스 검색/);
     assert.match(html, /recognitionText 중심 탐색/);
     assert.doesNotMatch(html, /JSON to Excel/);
     assert.match(css, /\.tool-grid\s*{/);
@@ -47,6 +49,67 @@ describe('upload-first UI structure', () => {
     assert.match(app, /showStringResourceTool/);
     assert.match(html, /src="\.\/vendor\/xlsx\.full\.min\.js"/);
     assert.doesNotMatch(app, /showExcelTool/);
+  });
+
+  it('provides a String Resource Explorer upload and search workspace', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+    const cssRuleBodiesForSelector = (cssText, selector) => [...cssText.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, selectorList]) => selectorList
+        .split(',')
+        .map((part) => part.trim())
+        .includes(selector))
+      .map(([, , body]) => body);
+
+    for (const id of [
+      'stringResourceApp',
+      'stringResourceCount',
+      'stringResourceFileInput',
+      'stringResourceUploadStatus',
+      'stringResourceSheetPanel',
+      'stringResourceSheetList',
+      'stringResourceSearchInput',
+      'stringResourceResultCount',
+      'stringResourceEmptyState',
+      'stringResourceTableShell',
+      'stringResourceTable',
+      'stringResourceTableHead',
+      'stringResourceTableBody',
+      'stringResourceLanguageButton',
+      'stringResourceLanguagePanel',
+      'stringResourceDetailModal',
+      'stringResourceDetailTitle',
+      'stringResourceDetailBody',
+      'closeStringResourceDetailButton'
+    ]) {
+      assert.match(html, new RegExp(`id="${id}"`));
+    }
+
+    for (const selector of [
+      '.string-resource-workspace',
+      '.string-resource-toolbar',
+      '.string-resource-sheet-panel',
+      '.string-resource-results',
+      '.string-resource-table-shell',
+      '.string-resource-table',
+      '.string-resource-detail-modal'
+    ]) {
+      assert.notEqual(cssRuleBodiesForSelector(css, selector).length, 0, `Expected CSS selector ${selector}`);
+    }
+
+    for (const contract of [
+      'showStringResourceTool',
+      'registerStringResourceFiles',
+      'renderStringResource',
+      'renderStringResourceSheets',
+      'renderStringResourceResults',
+      'openStringResourceDetail',
+      'closeStringResourceDetail'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
   });
 
   it('declares local SheetJS vendor loading for Excel parsing', async () => {

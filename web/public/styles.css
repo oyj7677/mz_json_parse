@@ -1168,6 +1168,98 @@ body.resizing-explorer-column {
   padding: 16px;
 }
 
+
+.string-resource-workspace {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(260px, 1fr);
+  gap: 14px;
+}
+
+.string-resource-toolbar,
+.string-resource-search-area,
+.string-resource-sheet-panel,
+.string-resource-results,
+.string-resource-language-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.string-resource-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+}
+
+.string-resource-sheet-panel {
+  grid-row: 2 / 4;
+  padding: 14px;
+}
+
+.string-resource-search-area {
+  padding: 14px;
+}
+
+.string-resource-results {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.string-resource-table-shell {
+  min-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.string-resource-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.string-resource-table th,
+.string-resource-table td {
+  max-width: 260px;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.string-resource-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-soft);
+  font-weight: 850;
+}
+
+.string-resource-language-panel {
+  grid-column: 2;
+  padding: 14px;
+}
+
+.string-resource-detail-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
 .help-overlay {
   position: fixed;
   inset: 0;
@@ -1275,7 +1367,8 @@ body.resizing-explorer-column {
   }
 
   .explorer-workspace,
-  .mapping-workspace {
+  .mapping-workspace,
+  .string-resource-workspace {
     flex: 1;
     align-items: stretch;
     overflow: hidden;
@@ -1355,7 +1448,8 @@ body.resizing-explorer-column {
   .hub-header,
   .workspace,
   .explorer-workspace,
-  .mapping-workspace {
+  .mapping-workspace,
+  .string-resource-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -1412,6 +1506,33 @@ body.resizing-explorer-column {
   .explorer-table-shell {
     min-height: 260px;
     max-height: calc(100vh - 360px);
+  }
+
+
+  .string-resource-workspace {
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .string-resource-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .string-resource-toolbar .upload-strip,
+  .string-resource-toolbar .file-picker,
+  .string-resource-toolbar > .ghost-button {
+    width: 100%;
+  }
+
+  .string-resource-sheet-panel,
+  .string-resource-language-panel {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  .string-resource-table-shell {
+    max-height: calc(100vh - 420px);
   }
 
   .mapping-workspace {

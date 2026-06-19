@@ -21,6 +21,14 @@ import {
   sanitizeFilenameBase
 } from './core.js';
 
+import {
+  filterStringResourceRows,
+  normalizeStringResourceWorkbook,
+  resolveStringResourceQualifiers,
+  STRING_RESOURCE_DEFAULT_QUALIFIERS
+} from './string-resource-core.js';
+import { parseStringResourceWorkbookFile } from './string-resource-xlsx.js';
+
 const EXPLORER_COLUMN_STORAGE_KEY = 'mz-json-explorer-column-widths';
 const EXPLORER_TABLE_COLUMNS = [
   { id: 'sourceFilename', defaultWidth: 180, minWidth: 120, maxWidth: 520 },
@@ -53,6 +61,15 @@ const state = {
     selectedGroupId: '',
     selectedSlots: [],
     source: ''
+  },
+  stringResource: {
+    errors: [],
+    files: [],
+    modalRowId: '',
+    query: '',
+    rows: [],
+    selectedSheetIds: new Set(),
+    visibleQualifiers: [...STRING_RESOURCE_DEFAULT_QUALIFIERS]
   },
   nextId: 1,
   translateFilenames: true
@@ -95,12 +112,15 @@ const elements = {
   backToHubButton: document.querySelector('#backToHubButton'),
   backToHubFromExplorerButton: document.querySelector('#backToHubFromExplorerButton'),
   backToHubFromMappingButton: document.querySelector('#backToHubFromMappingButton'),
+  backToHubFromStringResourceButton: document.querySelector('#backToHubFromStringResourceButton'),
   clearInputButton: document.querySelector('#clearInputButton'),
   clearExplorerButton: document.querySelector('#clearExplorerButton'),
   clearItemsButton: document.querySelector('#clearItemsButton'),
+  clearStringResourceButton: document.querySelector('#clearStringResourceButton'),
   closeHelpButton: document.querySelector('#closeHelpButton'),
   closeExplorerFilesButton: document.querySelector('#closeExplorerFilesButton'),
   closeExplorerModalButton: document.querySelector('#closeExplorerModalButton'),
+  closeStringResourceDetailButton: document.querySelector('#closeStringResourceDetailButton'),
   downloadAllButton: document.querySelector('#downloadAllButton'),
   explorerApp: document.querySelector('#explorerApp'),
   explorerCount: document.querySelector('#explorerCount'),
@@ -148,10 +168,30 @@ const elements = {
   mappingSlotTableBody: document.querySelector('#mappingSlotTableBody'),
   mappingSlotTableShell: document.querySelector('#mappingSlotTableShell'),
   mappingStatus: document.querySelector('#mappingStatus'),
+  stringResourceApp: document.querySelector('#stringResourceApp'),
+  stringResourceCount: document.querySelector('#stringResourceCount'),
+  stringResourceDetailBackdrop: document.querySelector('#stringResourceDetailBackdrop'),
+  stringResourceDetailBody: document.querySelector('#stringResourceDetailBody'),
+  stringResourceDetailMeta: document.querySelector('#stringResourceDetailMeta'),
+  stringResourceDetailModal: document.querySelector('#stringResourceDetailModal'),
+  stringResourceDetailTitle: document.querySelector('#stringResourceDetailTitle'),
+  stringResourceEmptyState: document.querySelector('#stringResourceEmptyState'),
+  stringResourceFileInput: document.querySelector('#stringResourceFileInput'),
+  stringResourceLanguageButton: document.querySelector('#stringResourceLanguageButton'),
+  stringResourceLanguageList: document.querySelector('#stringResourceLanguageList'),
+  stringResourceLanguagePanel: document.querySelector('#stringResourceLanguagePanel'),
+  stringResourceResultCount: document.querySelector('#stringResourceResultCount'),
+  stringResourceSearchInput: document.querySelector('#stringResourceSearchInput'),
+  stringResourceSheetList: document.querySelector('#stringResourceSheetList'),
+  stringResourceTableBody: document.querySelector('#stringResourceTableBody'),
+  stringResourceTableHead: document.querySelector('#stringResourceTableHead'),
+  stringResourceTableShell: document.querySelector('#stringResourceTableShell'),
+  stringResourceUploadStatus: document.querySelector('#stringResourceUploadStatus'),
   openExplorerButton: document.querySelector('#openExplorerButton'),
   openFormatterButton: document.querySelector('#openFormatterButton'),
   openHelpButton: document.querySelector('#openHelpButton'),
   openMappingButton: document.querySelector('#openMappingButton'),
+  openStringResourceButton: document.querySelector('#openStringResourceButton'),
   pastePanel: document.querySelector('#pastePanel'),
   prevHelpButton: document.querySelector('#prevHelpButton'),
   quickTitleList: document.querySelector('#quickTitleList'),
@@ -183,6 +223,8 @@ elements.openMappingButton.addEventListener('click', () => {
   showMappingTool();
 });
 
+elements.openStringResourceButton.addEventListener('click', showStringResourceTool);
+
 elements.backToHubButton.addEventListener('click', () => {
   showToolHub();
 });
@@ -194,6 +236,29 @@ elements.backToHubFromExplorerButton.addEventListener('click', () => {
 elements.backToHubFromMappingButton.addEventListener('click', () => {
   showToolHub();
 });
+
+elements.backToHubFromStringResourceButton.addEventListener('click', showToolHub);
+
+
+elements.stringResourceSearchInput.addEventListener('input', (event) => {
+  state.stringResource.query = event.target.value;
+  renderStringResource();
+});
+
+elements.stringResourceFileInput.addEventListener('change', async () => {
+  await registerStringResourceFiles(elements.stringResourceFileInput.files);
+  elements.stringResourceFileInput.value = '';
+});
+
+elements.stringResourceLanguageButton.addEventListener('click', () => {
+  const nextHidden = !elements.stringResourceLanguagePanel.hidden;
+  elements.stringResourceLanguagePanel.hidden = nextHidden;
+  elements.stringResourceLanguageButton.setAttribute('aria-expanded', String(!nextHidden));
+});
+
+elements.closeStringResourceDetailButton.addEventListener('click', closeStringResourceDetail);
+
+elements.stringResourceDetailBackdrop.addEventListener('click', closeStringResourceDetail);
 
 elements.mappingGroupSearchInput.addEventListener('input', (event) => {
   state.mapping.query = event.target.value;
@@ -379,6 +444,7 @@ initializeExplorerColumnResizing();
 render();
 renderExplorer();
 renderMappingWorkflow();
+renderStringResource();
 
 function showToolHub() {
   if (!elements.helpOverlay.hidden) {
@@ -389,6 +455,7 @@ function showToolHub() {
   elements.formatterApp.hidden = true;
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = true;
+  elements.stringResourceApp.hidden = true;
   document.body.classList.remove('formatter-active', 'mapping-active');
   elements.openFormatterButton.focus();
 }
@@ -398,6 +465,7 @@ function showFormatterTool() {
   elements.formatterApp.hidden = false;
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = true;
+  elements.stringResourceApp.hidden = true;
   document.body.classList.remove('mapping-active');
   document.body.classList.add('formatter-active');
   elements.backToHubButton.focus();
@@ -412,6 +480,7 @@ function showExplorerTool() {
   elements.formatterApp.hidden = true;
   elements.explorerApp.hidden = false;
   elements.mappingApp.hidden = true;
+  elements.stringResourceApp.hidden = true;
   document.body.classList.remove('formatter-active', 'mapping-active');
   elements.backToHubFromExplorerButton.focus();
 }
@@ -425,10 +494,46 @@ function showMappingTool() {
   elements.formatterApp.hidden = true;
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = false;
+  elements.stringResourceApp.hidden = true;
   document.body.classList.remove('formatter-active');
   document.body.classList.add('mapping-active');
   elements.mappingGroupSearchInput.focus();
   void loadMappingData();
+}
+
+function showStringResourceTool() {
+  if (!elements.helpOverlay.hidden) {
+    closeHelp();
+  }
+
+  elements.toolHub.hidden = true;
+  elements.formatterApp.hidden = true;
+  elements.explorerApp.hidden = true;
+  elements.mappingApp.hidden = true;
+  elements.stringResourceApp.hidden = false;
+  document.body.classList.remove('formatter-active', 'mapping-active');
+  elements.stringResourceSearchInput.focus();
+  renderStringResource();
+}
+
+async function registerStringResourceFiles() {
+  renderStringResource();
+}
+
+function renderStringResource() {
+  renderStringResourceSheets();
+  renderStringResourceResults();
+}
+
+function renderStringResourceSheets() {}
+
+function renderStringResourceResults() {}
+
+function openStringResourceDetail() {}
+
+function closeStringResourceDetail() {
+  state.stringResource.modalRowId = '';
+  elements.stringResourceDetailModal.hidden = true;
 }
 
 async function loadMappingData() {
