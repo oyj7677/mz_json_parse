@@ -120,6 +120,17 @@ describe('upload-first UI structure', () => {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
 
+    for (const contract of [
+      'renderStringResourceTableHeader',
+      'renderStringResourceTableRow',
+      'renderStringResourceLanguageControls',
+      'toggleStringResourceQualifier'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
+    assert.match(css, /\.string-resource-language-cell\s*{/);
+    assert.match(css, /\.string-resource-id-cell\s*{/);
+
     for (const appContract of [
       'nextStringResourceFileId',
       'stringResourceSheetId'

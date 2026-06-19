@@ -1563,3 +1563,34 @@ body.resizing-explorer-column {
   }
 
 }
+.string-resource-id-cell {
+  min-width: 210px;
+  font-weight: 850;
+}
+
+.string-resource-language-cell {
+  min-width: 180px;
+  white-space: pre-wrap;
+}
+
+.string-resource-sheet-group {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.string-resource-sheet-group h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.string-resource-sheet-row,
+.string-resource-language-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}

@@ -633,7 +633,125 @@ function selectedStringResourceRows() {
   );
 }
 
-function renderStringResourceResults() {}
+function renderStringResourceResults() {
+  const rows = selectedStringResourceRows();
+  const query = state.stringResource.query.trim();
+  const filteredRows = query ? filterStringResourceRows(rows, query) : [];
+  const availableQualifiers = resolveStringResourceQualifiers(rows);
+  const visibleQualifiers = state.stringResource.visibleQualifiers.filter((qualifier) => availableQualifiers.includes(qualifier));
+
+  renderStringResourceLanguageControls(availableQualifiers);
+  renderStringResourceTableHeader(visibleQualifiers);
+  elements.stringResourceTableBody.replaceChildren();
+  elements.stringResourceTableShell.hidden = true;
+  elements.stringResourceEmptyState.hidden = false;
+  elements.stringResourceResultCount.textContent = `검색 결과 ${filteredRows.length.toLocaleString()}개`;
+
+  if (state.stringResource.files.length === 0) {
+    elements.stringResourceEmptyState.textContent = '엑셀 파일을 업로드하세요.';
+    return;
+  }
+
+  if (!query) {
+    elements.stringResourceEmptyState.textContent = '문자열 내용을 검색하세요.';
+    return;
+  }
+
+  if (filteredRows.length === 0) {
+    elements.stringResourceEmptyState.textContent = `검색 결과가 없습니다: ${query}`;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const row of filteredRows) {
+    fragment.append(renderStringResourceTableRow(row, visibleQualifiers));
+  }
+
+  elements.stringResourceEmptyState.hidden = true;
+  elements.stringResourceTableShell.hidden = false;
+  elements.stringResourceTableBody.append(fragment);
+}
+
+function renderStringResourceTableHeader(qualifiers) {
+  const headerRow = document.createElement('tr');
+  for (const label of ['Resource ID', 'File', 'Sheet', ...qualifiers, '보기']) {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.textContent = label;
+    headerRow.append(th);
+  }
+  elements.stringResourceTableHead.replaceChildren(headerRow);
+}
+
+function renderStringResourceTableRow(row, qualifiers) {
+  const tr = document.createElement('tr');
+  appendStringResourceCell(tr, row.resourceId, 'string-resource-id-cell');
+  appendStringResourceCell(tr, row.fileName);
+  appendStringResourceCell(tr, `${row.sheetName} · row ${row.rowNumber}`);
+
+  for (const qualifier of qualifiers) {
+    appendStringResourceCell(tr, row.languages[qualifier] ?? '', 'string-resource-language-cell');
+  }
+
+  const actionCell = document.createElement('td');
+  const button = document.createElement('button');
+  button.className = 'ghost-button';
+  button.type = 'button';
+  button.textContent = '보기';
+  button.addEventListener('click', () => openStringResourceDetail(row.id));
+  actionCell.append(button);
+  tr.append(actionCell);
+  return tr;
+}
+
+function appendStringResourceCell(row, value, className = '') {
+  const cell = document.createElement('td');
+  cell.textContent = String(value ?? '');
+  cell.title = cell.textContent;
+  if (className) {
+    cell.className = className;
+  }
+  row.append(cell);
+}
+
+function renderStringResourceLanguageControls(availableQualifiers) {
+  elements.stringResourceLanguageList.replaceChildren();
+
+  if (availableQualifiers.length === 0) {
+    elements.stringResourceLanguageList.innerHTML = '<div class="empty-state compact-empty">표시할 언어 컬럼이 없습니다.</div>';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const qualifier of availableQualifiers) {
+    const label = document.createElement('label');
+    label.className = 'string-resource-language-option';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = state.stringResource.visibleQualifiers.includes(qualifier);
+    checkbox.addEventListener('change', () => toggleStringResourceQualifier(qualifier));
+
+    const text = document.createElement('span');
+    text.textContent = qualifier;
+    label.append(checkbox, text);
+    fragment.append(label);
+  }
+
+  elements.stringResourceLanguageList.append(fragment);
+}
+
+function toggleStringResourceQualifier(qualifier) {
+  const set = new Set(state.stringResource.visibleQualifiers);
+  if (set.has(qualifier)) {
+    set.delete(qualifier);
+  } else {
+    set.add(qualifier);
+  }
+  state.stringResource.visibleQualifiers = [...STRING_RESOURCE_DEFAULT_QUALIFIERS, ...[...set].sort()]
+    .filter((item, index, array) => array.indexOf(item) === index && set.has(item));
+  renderStringResource();
+}
 
 function openStringResourceDetail() {}
 
