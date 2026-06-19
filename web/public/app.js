@@ -30,6 +30,7 @@ import {
 import { parseStringResourceWorkbookFile } from './string-resource-xlsx.js';
 
 const EXPLORER_COLUMN_STORAGE_KEY = 'mz-json-explorer-column-widths';
+const STRING_RESOURCE_RESULT_RENDER_LIMIT = 500;
 const EXPLORER_TABLE_COLUMNS = [
   { id: 'sourceFilename', defaultWidth: 180, minWidth: 120, maxWidth: 520 },
   { id: 'recognitionText', defaultWidth: 340, minWidth: 180, maxWidth: 760 },
@@ -638,14 +639,16 @@ function renderStringResourceResults() {
   const query = state.stringResource.query.trim();
   const filteredRows = query ? filterStringResourceRows(rows, query) : [];
   const availableQualifiers = resolveStringResourceQualifiers(rows);
+  syncStringResourceVisibleQualifiers(availableQualifiers);
   const visibleQualifiers = state.stringResource.visibleQualifiers.filter((qualifier) => availableQualifiers.includes(qualifier));
+  const renderedRows = filteredRows.slice(0, STRING_RESOURCE_RESULT_RENDER_LIMIT);
 
   renderStringResourceLanguageControls(availableQualifiers);
   renderStringResourceTableHeader(visibleQualifiers);
   elements.stringResourceTableBody.replaceChildren();
   elements.stringResourceTableShell.hidden = true;
   elements.stringResourceEmptyState.hidden = false;
-  elements.stringResourceResultCount.textContent = `검색 결과 ${filteredRows.length.toLocaleString()}개`;
+  elements.stringResourceResultCount.textContent = stringResourceResultCountText(filteredRows.length, renderedRows.length);
 
   if (state.stringResource.files.length === 0) {
     elements.stringResourceEmptyState.textContent = '엑셀 파일을 업로드하세요.';
@@ -663,13 +666,34 @@ function renderStringResourceResults() {
   }
 
   const fragment = document.createDocumentFragment();
-  for (const row of filteredRows) {
+  for (const row of renderedRows) {
     fragment.append(renderStringResourceTableRow(row, visibleQualifiers));
   }
 
   elements.stringResourceEmptyState.hidden = true;
   elements.stringResourceTableShell.hidden = false;
   elements.stringResourceTableBody.append(fragment);
+}
+
+function syncStringResourceVisibleQualifiers(availableQualifiers) {
+  const current = new Set(state.stringResource.visibleQualifiers);
+  for (const qualifier of availableQualifiers) {
+    current.add(qualifier);
+  }
+  state.stringResource.visibleQualifiers = orderStringResourceQualifiers([...current]);
+}
+
+function orderStringResourceQualifiers(qualifiers) {
+  const set = new Set(qualifiers);
+  return [...STRING_RESOURCE_DEFAULT_QUALIFIERS, ...[...set].sort()]
+    .filter((item, index, array) => array.indexOf(item) === index && set.has(item));
+}
+
+function stringResourceResultCountText(totalCount, renderedCount) {
+  const totalText = `검색 결과 ${totalCount.toLocaleString()}개`;
+  return totalCount > renderedCount
+    ? `${totalText} · 먼저 ${renderedCount.toLocaleString()}개 표시`
+    : totalText;
 }
 
 function renderStringResourceTableHeader(qualifiers) {
@@ -748,8 +772,7 @@ function toggleStringResourceQualifier(qualifier) {
   } else {
     set.add(qualifier);
   }
-  state.stringResource.visibleQualifiers = [...STRING_RESOURCE_DEFAULT_QUALIFIERS, ...[...set].sort()]
-    .filter((item, index, array) => array.indexOf(item) === index && set.has(item));
+  state.stringResource.visibleQualifiers = orderStringResourceQualifiers([...set]);
   renderStringResource();
 }
 
