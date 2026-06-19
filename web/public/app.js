@@ -70,6 +70,7 @@ const state = {
     expandedFileIds: new Set(),
     files: [],
     hiddenQualifiers: new Set(),
+    isUploading: false,
     modalRowId: '',
     nextFileId: 1,
     query: '',
@@ -192,6 +193,10 @@ const elements = {
   stringResourceTableBody: document.querySelector('#stringResourceTableBody'),
   stringResourceTableHead: document.querySelector('#stringResourceTableHead'),
   stringResourceTableShell: document.querySelector('#stringResourceTableShell'),
+  stringResourceUploadProgress: document.querySelector('#stringResourceUploadProgress'),
+  stringResourceUploadProgressBar: document.querySelector('#stringResourceUploadProgressBar'),
+  stringResourceUploadProgressFill: document.querySelector('#stringResourceUploadProgressFill'),
+  stringResourceUploadProgressText: document.querySelector('#stringResourceUploadProgressText'),
   stringResourceUploadStatus: document.querySelector('#stringResourceUploadStatus'),
   openExplorerButton: document.querySelector('#openExplorerButton'),
   openFormatterButton: document.querySelector('#openFormatterButton'),
@@ -552,52 +557,82 @@ function showStringResourceTool() {
 async function registerStringResourceFiles(fileList) {
   const files = Array.from(fileList ?? []);
   if (files.length === 0) {
-    setStringResourceUploadStatus('선택된 엑셀 파일이 없습니다.');
+    setStringResourceUploadStatus('\uC120\uD0DD\uB41C \uC5D1\uC140 \uD30C\uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
     return;
   }
 
   let addedCount = 0;
   let errorCount = 0;
 
-  for (const file of files) {
-    try {
-      const workbook = await parseStringResourceWorkbookFile(file);
-      const normalized = normalizeStringResourceWorkbook(workbook, file.name);
-      const fileId = nextStringResourceFileId();
-      const rows = normalized.rows.map((row) => ({ ...row, fileId }));
-      state.stringResource.files.push({
-        fileId,
+  setStringResourceUploadControlsDisabled(true);
+  setStringResourceUploadProgress({
+    completed: 0,
+    total: files.length,
+    fileName: files[0]?.name ?? '',
+    phase: '\uB300\uAE30 \uC911'
+  });
+  await yieldToBrowser();
+
+  try {
+    for (const file of files) {
+      setStringResourceUploadProgress({
+        completed: addedCount + errorCount,
+        total: files.length,
         fileName: file.name,
-        rows,
-        sheetSummaries: normalized.sheetSummaries
+        phase: '\uBD84\uC11D \uC911'
       });
+      await yieldToBrowser();
 
-      let hasCandidateSheet = false;
-      for (const summary of normalized.sheetSummaries) {
-        if (summary.isCandidate) {
-          hasCandidateSheet = true;
-          state.stringResource.selectedSheetIds.add(stringResourceSheetId(fileId, summary.name));
+      try {
+        const workbook = await parseStringResourceWorkbookFile(file);
+        const normalized = normalizeStringResourceWorkbook(workbook, file.name);
+        const fileId = nextStringResourceFileId();
+        const rows = normalized.rows.map((row) => ({ ...row, fileId }));
+        state.stringResource.files.push({
+          fileId,
+          fileName: file.name,
+          rows,
+          sheetSummaries: normalized.sheetSummaries
+        });
+
+        let hasCandidateSheet = false;
+        for (const summary of normalized.sheetSummaries) {
+          if (summary.isCandidate) {
+            hasCandidateSheet = true;
+            state.stringResource.selectedSheetIds.add(stringResourceSheetId(fileId, summary.name));
+          }
         }
+
+        if (hasCandidateSheet) {
+          state.stringResource.expandedFileIds.add(fileId);
+        }
+
+        addedCount += 1;
+      } catch (error) {
+        errorCount += 1;
+        state.stringResource.errors.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`);
       }
 
-      if (hasCandidateSheet) {
-        state.stringResource.expandedFileIds.add(fileId);
-      }
-
-      addedCount += 1;
-    } catch (error) {
-      errorCount += 1;
-      state.stringResource.errors.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+      setStringResourceUploadProgress({
+        completed: addedCount + errorCount,
+        total: files.length,
+        fileName: file.name,
+        phase: '\uCC98\uB9AC \uC644\uB8CC'
+      });
+      await yieldToBrowser();
     }
+  } finally {
+    state.stringResource.rows = state.stringResource.files.flatMap((file) => file.rows);
+    setStringResourceUploadStatus(`${addedCount}\uAC1C \uD30C\uC77C \uB4F1\uB85D, \uC624\uB958 ${errorCount}\uAC1C`);
+    setStringResourceUploadControlsDisabled(false);
+    finishStringResourceUploadProgress();
+    renderStringResource();
   }
-
-  state.stringResource.rows = state.stringResource.files.flatMap((file) => file.rows);
-  setStringResourceUploadStatus(`${addedCount}개 파일 등록, 오류 ${errorCount}개`);
-  renderStringResource();
 }
 function renderStringResource() {
   elements.stringResourceCount.textContent = `업로드된 엑셀 ${state.stringResource.files.length.toLocaleString()}개`;
-  elements.clearStringResourceButton.disabled = state.stringResource.files.length === 0 && state.stringResource.errors.length === 0;
+  elements.clearStringResourceButton.disabled = state.stringResource.isUploading
+    || (state.stringResource.files.length === 0 && state.stringResource.errors.length === 0);
   renderStringResourceSheets();
   renderStringResourceResults();
   if (!elements.stringResourceDetailModal.hidden) {
@@ -982,6 +1017,35 @@ async function copyStringResourceValue(value) {
 
 function setStringResourceUploadStatus(message) {
   elements.stringResourceUploadStatus.textContent = message;
+}
+
+function setStringResourceUploadControlsDisabled(isDisabled) {
+  state.stringResource.isUploading = isDisabled;
+  elements.stringResourceFileInput.disabled = isDisabled;
+  elements.stringResourceLanguageButton.disabled = isDisabled;
+  elements.stringResourceFileInput.closest('.upload-strip')?.classList.toggle('is-uploading', isDisabled);
+  elements.clearStringResourceButton.disabled = isDisabled
+    || (state.stringResource.files.length === 0 && state.stringResource.errors.length === 0);
+}
+
+function setStringResourceUploadProgress({ completed, total, fileName, phase }) {
+  const safeTotal = Math.max(total, 1);
+  const percent = Math.min(100, Math.max(0, Math.round((completed / safeTotal) * 100)));
+  elements.stringResourceUploadProgress.hidden = false;
+  elements.stringResourceUploadProgressFill.style.width = `${percent}%`;
+  elements.stringResourceUploadProgressBar.setAttribute('aria-valuenow', String(percent));
+  elements.stringResourceUploadProgressText.textContent = `${Math.min(completed, total).toLocaleString()}/${total.toLocaleString()} ${phase} - ${fileName}`;
+}
+
+function finishStringResourceUploadProgress() {
+  elements.stringResourceUploadProgress.hidden = true;
+  elements.stringResourceUploadProgressFill.style.width = '0%';
+  elements.stringResourceUploadProgressBar.setAttribute('aria-valuenow', '0');
+  elements.stringResourceUploadProgressText.textContent = '0/0';
+}
+
+function yieldToBrowser() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function nextStringResourceFileId() {

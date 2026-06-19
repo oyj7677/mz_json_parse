@@ -423,6 +423,19 @@
             <label class="file-picker" for="stringResourceFileInput">엑셀 파일 선택</label>
             <input id="stringResourceFileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple>
             <span id="stringResourceUploadStatus" aria-live="polite">다국어 문자열 리소스 엑셀을 선택하세요.</span>
+            <div class="string-resource-upload-progress" id="stringResourceUploadProgress" role="status" aria-live="polite" hidden>
+              <div
+                class="string-resource-progress-track"
+                id="stringResourceUploadProgressBar"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <span class="string-resource-progress-fill" id="stringResourceUploadProgressFill"></span>
+              </div>
+              <span class="string-resource-progress-text" id="stringResourceUploadProgressText">0/0</span>
+            </div>
           </div>
           <button class="ghost-button" id="stringResourceLanguageButton" type="button" aria-expanded="false" aria-controls="stringResourceLanguagePanel">
             언어 컬럼
