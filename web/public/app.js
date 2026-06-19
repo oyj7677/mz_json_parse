@@ -581,6 +581,9 @@ function renderStringResource() {
   elements.clearStringResourceButton.disabled = state.stringResource.files.length === 0 && state.stringResource.errors.length === 0;
   renderStringResourceSheets();
   renderStringResourceResults();
+  if (!elements.stringResourceDetailModal.hidden) {
+    renderStringResourceDetail();
+  }
 }
 
 function renderStringResourceSheets() {
@@ -775,11 +778,98 @@ function toggleStringResourceQualifier(qualifier) {
   renderStringResource();
 }
 
-function openStringResourceDetail() {}
+function openStringResourceDetail(rowId) {
+  state.stringResource.modalRowId = rowId;
+  renderStringResourceDetail();
+  elements.stringResourceDetailModal.hidden = false;
+  elements.closeStringResourceDetailButton.focus();
+}
 
 function closeStringResourceDetail() {
   state.stringResource.modalRowId = '';
   elements.stringResourceDetailModal.hidden = true;
+}
+
+function renderStringResourceDetail() {
+  const row = state.stringResource.rows.find((item) => item.id === state.stringResource.modalRowId);
+  elements.stringResourceDetailBody.replaceChildren();
+
+  if (!row) {
+    elements.stringResourceDetailTitle.textContent = 'String Resource 상세';
+    elements.stringResourceDetailMeta.textContent = '선택된 리소스가 없습니다.';
+    return;
+  }
+
+  elements.stringResourceDetailTitle.textContent = row.resourceId;
+  elements.stringResourceDetailMeta.textContent = `${row.fileName} · ${row.sheetName} · row ${row.rowNumber}`;
+
+  const grid = document.createElement('div');
+  grid.className = 'string-resource-detail-grid';
+
+  const languageSection = document.createElement('section');
+  languageSection.innerHTML = '<h3>언어별 문자열</h3>';
+  for (const qualifier of resolveStringResourceQualifiers([row])) {
+    const value = row.languages[qualifier] ?? '';
+    if (!value) {
+      continue;
+    }
+    const valueRow = document.createElement('div');
+    valueRow.className = 'string-resource-value-row';
+    const key = document.createElement('strong');
+    key.textContent = qualifier;
+    const text = document.createElement('span');
+    text.textContent = value;
+    const copy = document.createElement('button');
+    copy.className = 'ghost-button';
+    copy.type = 'button';
+    copy.textContent = 'Copy';
+    copy.addEventListener('click', () => copyStringResourceValue(value));
+    valueRow.append(key, text, copy);
+    languageSection.append(valueRow);
+  }
+
+  const metaSection = document.createElement('section');
+  metaSection.innerHTML = '<h3>출처와 메타</h3>';
+  metaSection.append(
+    renderStringResourceKeyValueList({
+      File: row.fileName,
+      Sheet: row.sheetName,
+      Row: row.rowNumber,
+      ...row.idFields,
+      ...row.metadata
+    })
+  );
+
+  const rawSection = document.createElement('section');
+  rawSection.innerHTML = '<h3>원본 행</h3>';
+  rawSection.append(renderStringResourceKeyValueList(row.originalValues));
+
+  grid.append(languageSection, metaSection, rawSection);
+  elements.stringResourceDetailBody.append(grid);
+}
+
+function renderStringResourceKeyValueList(values) {
+  const dl = document.createElement('dl');
+  dl.className = 'string-resource-key-values';
+  for (const [key, value] of Object.entries(values ?? {})) {
+    if (String(value ?? '').trim() === '') {
+      continue;
+    }
+    const dt = document.createElement('dt');
+    dt.textContent = key;
+    const dd = document.createElement('dd');
+    dd.textContent = String(value);
+    dl.append(dt, dd);
+  }
+  return dl;
+}
+
+async function copyStringResourceValue(value) {
+  try {
+    await navigator.clipboard.writeText(String(value ?? ''));
+  } catch {
+    window.prompt('복사할 값을 선택하세요.', String(value ?? ''));
+  }
 }
 
 function setStringResourceUploadStatus(message) {

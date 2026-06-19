@@ -128,6 +128,15 @@ describe('upload-first UI structure', () => {
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
+    for (const contract of [
+      'renderStringResourceDetail',
+      'copyStringResourceValue',
+      'renderStringResourceKeyValueList'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
+    assert.match(css, /\.string-resource-detail-grid\s*{/);
+    assert.match(css, /\.string-resource-value-row\s*{/);
     assert.match(css, /\.string-resource-language-cell\s*{/);
     assert.match(css, /\.string-resource-id-cell\s*{/);
     assert.match(app, /const STRING_RESOURCE_RESULT_RENDER_LIMIT = 500/);
