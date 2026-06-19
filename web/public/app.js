@@ -66,6 +66,7 @@ const state = {
   stringResource: {
     errors: [],
     files: [],
+    hiddenQualifiers: new Set(),
     modalRowId: '',
     nextFileId: 1,
     query: '',
@@ -255,6 +256,7 @@ elements.stringResourceFileInput.addEventListener('change', async () => {
 elements.clearStringResourceButton.addEventListener('click', () => {
   state.stringResource.errors = [];
   state.stringResource.files = [];
+  state.stringResource.hiddenQualifiers = new Set();
   state.stringResource.modalRowId = '';
   state.stringResource.nextFileId = 1;
   state.stringResource.query = '';
@@ -678,7 +680,9 @@ function renderStringResourceResults() {
 function syncStringResourceVisibleQualifiers(availableQualifiers) {
   const current = new Set(state.stringResource.visibleQualifiers);
   for (const qualifier of availableQualifiers) {
-    current.add(qualifier);
+    if (!state.stringResource.hiddenQualifiers.has(qualifier)) {
+      current.add(qualifier);
+    }
   }
   state.stringResource.visibleQualifiers = orderStringResourceQualifiers([...current]);
 }
@@ -769,8 +773,10 @@ function toggleStringResourceQualifier(qualifier) {
   const set = new Set(state.stringResource.visibleQualifiers);
   if (set.has(qualifier)) {
     set.delete(qualifier);
+    state.stringResource.hiddenQualifiers.add(qualifier);
   } else {
     set.add(qualifier);
+    state.stringResource.hiddenQualifiers.delete(qualifier);
   }
   state.stringResource.visibleQualifiers = orderStringResourceQualifiers([...set]);
   renderStringResource();
