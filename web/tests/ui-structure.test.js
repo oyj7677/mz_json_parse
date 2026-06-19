@@ -11,25 +11,31 @@ describe('upload-first UI structure', () => {
     const formatterIndex = html.indexOf('id="formatterApp"');
     const explorerIndex = html.indexOf('id="explorerApp"');
     const mappingIndex = html.indexOf('id="mappingApp"');
+    const stringResourceIndex = html.indexOf('id="stringResourceApp"');
 
     assert.notEqual(hubIndex, -1);
     assert.notEqual(formatterIndex, -1);
     assert.notEqual(explorerIndex, -1);
     assert.notEqual(mappingIndex, -1);
+    assert.notEqual(stringResourceIndex, -1);
     assert.ok(hubIndex < formatterIndex);
     assert.ok(hubIndex < mappingIndex);
+    assert.ok(hubIndex < stringResourceIndex);
     assert.match(html, /id="formatterApp"[^>]*hidden/);
     assert.match(html, /id="explorerApp"[^>]*hidden/);
     assert.match(html, /id="mappingApp"[^>]*hidden/);
+    assert.match(html, /id="stringResourceApp"[^>]*hidden/);
     assert.match(html, /id="openFormatterButton"/);
     assert.match(html, /id="openExplorerButton"/);
     assert.match(html, /id="openMappingButton"/);
+    assert.match(html, /id="openStringResourceButton"/);
     assert.match(html, /id="backToHubButton"/);
     assert.match(html, /id="backToHubFromExplorerButton"/);
     assert.match(html, /id="backToHubFromMappingButton"/);
     assert.match(html, /JSON Formatter/);
     assert.match(html, /JSON Explorer/);
     assert.match(html, /Mapping Table Explorer/);
+    assert.match(html, /String Resource Explorer/);
     assert.match(html, /recognitionText 중심 탐색/);
     assert.doesNotMatch(html, /JSON to Excel/);
     assert.match(css, /\.tool-grid\s*{/);
@@ -38,7 +44,19 @@ describe('upload-first UI structure', () => {
     assert.match(app, /showFormatterTool/);
     assert.match(app, /showExplorerTool/);
     assert.match(app, /showMappingTool/);
+    assert.match(app, /showStringResourceTool/);
+    assert.match(html, /src="\.\/vendor\/xlsx\.full\.min\.js"/);
     assert.doesNotMatch(app, /showExcelTool/);
+  });
+
+  it('declares local SheetJS vendor loading for Excel parsing', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const packageJson = await readFile(new URL('../package.json', import.meta.url), 'utf8');
+    const pkg = JSON.parse(packageJson);
+
+    assert.match(html, /<script src="\.\/vendor\/xlsx\.full\.min\.js" defer><\/script>/);
+    assert.equal(pkg.dependencies.xlsx, '0.18.5');
+    assert.equal(pkg.scripts['prepare:vendor'], 'node scripts/copy-xlsx-vendor.js');
   });
 
   it('provides a direct GROUP INTENTIONS to SLOT REFERENCE workflow', async () => {

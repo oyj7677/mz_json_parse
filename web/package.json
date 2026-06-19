@@ -7,9 +7,13 @@
     "deploy:vercel": "npx vercel --prod",
     "dev:vercel": "npx vercel dev",
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "prepare:vendor": "node scripts/copy-xlsx-vendor.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "xlsx": "0.18.5"
   }
 }
