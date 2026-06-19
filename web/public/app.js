@@ -259,7 +259,7 @@ elements.clearStringResourceButton.addEventListener('click', () => {
   state.stringResource.selectedSheetIds = new Set();
   state.stringResource.visibleQualifiers = [...STRING_RESOURCE_DEFAULT_QUALIFIERS];
   elements.stringResourceSearchInput.value = '';
-  setStringResourceUploadStatus('??? ??? ??? ??? ?????.');
+  setStringResourceUploadStatus('다국어 문자열 리소스 엑셀을 선택하세요.');
   renderStringResource();
 });
 
@@ -533,14 +533,14 @@ async function registerStringResourceFiles(fileList) {
   const files = Array.from(fileList ?? []);
   setStringResourceUploadStatus(
     files.length === 0
-      ? '??? ?? ??? ????.'
-      : `${files.length.toLocaleString()}? ??? ???????. ?? ???? ?? ??? ?????.`
+      ? '선택된 엑셀 파일이 없습니다.'
+      : `${files.length.toLocaleString()}개 파일이 선택되었습니다. 다음 단계에서 등록 기능을 연결합니다.`
   );
   renderStringResource();
 }
 
 function renderStringResource() {
-  elements.stringResourceCount.textContent = `???? ?? ${state.stringResource.files.length.toLocaleString()}?`;
+  elements.stringResourceCount.textContent = `업로드된 엑셀 ${state.stringResource.files.length.toLocaleString()}개`;
   elements.clearStringResourceButton.disabled = state.stringResource.files.length === 0;
   renderStringResourceSheets();
   renderStringResourceResults();
