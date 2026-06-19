@@ -128,6 +128,22 @@ describe('String Resource Explorer helpers', () => {
     ]);
   });
 
+  it('detects PromptLID and CheckLID sheets as string resource candidates', () => {
+    const promptSummary = detectStringResourceSheet({
+      name: 'Prompts',
+      rows: [{ rowNumber: 2, values: { PromptLID: 'CID_PROMPT_001', Korean: '도움말' } }]
+    });
+    const checkSummary = detectStringResourceSheet({
+      name: 'Checks',
+      rows: [{ rowNumber: 2, values: { CheckLID: 'CID_CHECK_001', 'English US': 'Help.' } }]
+    });
+
+    assert.equal(promptSummary.isCandidate, true);
+    assert.deepEqual(promptSummary.idColumns, ['PromptLID']);
+    assert.equal(checkSummary.isCandidate, true);
+    assert.deepEqual(checkSummary.idColumns, ['CheckLID']);
+  });
+
   it('normalizes workbook rows as one resource row per source row', () => {
     const result = normalizeStringResourceWorkbook(sampleWorkbook, 'sample.xlsx');
     assert.equal(result.rows.length, 3);
@@ -139,6 +155,12 @@ describe('String Resource Explorer helpers', () => {
         ['HMTC_Seat_00000159_00', 'sample.xlsx', 'ConnectC', 2]
       ]
     );
+    assert.deepEqual(result.rows[0].idFields, {
+      'MOBIS LID': 'CID_CMN_COMM_01_01_G',
+      'HMC UID': 'UID_00107629_00'
+    });
+    assert.deepEqual(result.rows[0].duplicateLanguages, {});
+    assert.equal(result.rows[0].originalValues.Korean, '도움말');
     assert.equal(result.rows[0].languages.ko, '도움말');
     assert.equal(result.rows[0].languages['en-rUS'], 'Help.');
     assert.equal(result.rows[0].languages['es-rMX'], 'Ayuda.');
@@ -178,6 +200,35 @@ describe('String Resource Explorer helpers', () => {
     };
     const { rows } = normalizeStringResourceWorkbook(duplicateWorkbook, 'dup.xlsx');
     assert.deepEqual(rows.map((row) => row.id), ['dup.xlsx:VR:2', 'dup.xlsx:VR:3']);
+  });
+
+  it('preserves duplicate language values while preferring the first table value', () => {
+    const duplicateLanguageWorkbook = {
+      source: 'duplicate-language.xlsx',
+      sheets: [
+        {
+          name: 'VR',
+          rows: [
+            {
+              rowNumber: 2,
+              values: {
+                'MOBIS LID': 'CID_DUP_LANG',
+                'English US': 'Help.',
+                'values-en-rUS': 'Assistance.'
+              }
+            }
+          ]
+        }
+      ]
+    };
+
+    const { rows } = normalizeStringResourceWorkbook(duplicateLanguageWorkbook, 'duplicate-language.xlsx');
+
+    assert.equal(rows[0].languages['en-rUS'], 'Help.');
+    assert.deepEqual(rows[0].duplicateLanguages['en-rUS'], [
+      { column: 'English US', value: 'Help.' },
+      { column: 'values-en-rUS', value: 'Assistance.' }
+    ]);
   });
 
   it('orders detected qualifiers after fixed defaults', () => {

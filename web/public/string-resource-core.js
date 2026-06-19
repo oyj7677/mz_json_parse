@@ -32,6 +32,8 @@ const ID_COLUMN_NAMES = new Set([
   'uid',
   'mobis lid',
   'hmc uid',
+  'promptlid',
+  'checklid',
   'resource id',
   'string id'
 ]);
@@ -204,6 +206,7 @@ export function normalizeStringResourceWorkbook(workbook, fileName = workbook?.s
       const values = getRowValues(sourceRow);
       const idFields = {};
       const languages = {};
+      const languageSources = {};
       const duplicateLanguages = {};
       const metadata = {};
 
@@ -221,10 +224,11 @@ export function normalizeStringResourceWorkbook(workbook, fileName = workbook?.s
         }
 
         if (Object.prototype.hasOwnProperty.call(languages, column.qualifier)) {
-          duplicateLanguages[column.qualifier] = duplicateLanguages[column.qualifier] ?? [];
+          duplicateLanguages[column.qualifier] = duplicateLanguages[column.qualifier] ?? [languageSources[column.qualifier]];
           duplicateLanguages[column.qualifier].push({ column: column.name, value });
         } else {
           languages[column.qualifier] = value;
+          languageSources[column.qualifier] = { column: column.name, value };
         }
       }
 
