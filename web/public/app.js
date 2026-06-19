@@ -66,6 +66,7 @@ const state = {
     errors: [],
     files: [],
     modalRowId: '',
+    nextFileId: 1,
     query: '',
     rows: [],
     selectedSheetIds: new Set(),
@@ -254,6 +255,7 @@ elements.clearStringResourceButton.addEventListener('click', () => {
   state.stringResource.errors = [];
   state.stringResource.files = [];
   state.stringResource.modalRowId = '';
+  state.stringResource.nextFileId = 1;
   state.stringResource.query = '';
   state.stringResource.rows = [];
   state.stringResource.selectedSheetIds = new Set();
@@ -543,15 +545,18 @@ async function registerStringResourceFiles(fileList) {
     try {
       const workbook = await parseStringResourceWorkbookFile(file);
       const normalized = normalizeStringResourceWorkbook(workbook, file.name);
+      const fileId = nextStringResourceFileId();
+      const rows = normalized.rows.map((row) => ({ ...row, fileId }));
       state.stringResource.files.push({
+        fileId,
         fileName: file.name,
-        rows: normalized.rows,
+        rows,
         sheetSummaries: normalized.sheetSummaries
       });
 
       for (const summary of normalized.sheetSummaries) {
         if (summary.isCandidate) {
-          state.stringResource.selectedSheetIds.add(stringResourceSheetId(file.name, summary.name));
+          state.stringResource.selectedSheetIds.add(stringResourceSheetId(fileId, summary.name));
         }
       }
 
@@ -566,10 +571,9 @@ async function registerStringResourceFiles(fileList) {
   setStringResourceUploadStatus(`${addedCount}개 파일 등록, 오류 ${errorCount}개`);
   renderStringResource();
 }
-
 function renderStringResource() {
   elements.stringResourceCount.textContent = `업로드된 엑셀 ${state.stringResource.files.length.toLocaleString()}개`;
-  elements.clearStringResourceButton.disabled = state.stringResource.files.length === 0;
+  elements.clearStringResourceButton.disabled = state.stringResource.files.length === 0 && state.stringResource.errors.length === 0;
   renderStringResourceSheets();
   renderStringResourceResults();
 }
@@ -592,7 +596,7 @@ function renderStringResourceSheets() {
     group.append(title);
 
     for (const summary of file.sheetSummaries) {
-      const sheetId = stringResourceSheetId(file.fileName, summary.name);
+      const sheetId = stringResourceSheetId(file.fileId, summary.name);
       const label = document.createElement('label');
       label.className = 'string-resource-sheet-row';
 
@@ -602,7 +606,7 @@ function renderStringResourceSheets() {
       checkbox.addEventListener('change', () => toggleStringResourceSheet(sheetId));
 
       const text = document.createElement('span');
-      text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${summary.isCandidate ? '자동 감지' : '수동 선택 가능'}`;
+      text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${summary.isCandidate ? '?? ??' : '?? ?? ??'}`;
 
       label.append(checkbox, text);
       group.append(label);
@@ -625,7 +629,7 @@ function toggleStringResourceSheet(sheetId) {
 
 function selectedStringResourceRows() {
   return state.stringResource.rows.filter((row) =>
-    state.stringResource.selectedSheetIds.has(stringResourceSheetId(row.fileName, row.sheetName))
+    state.stringResource.selectedSheetIds.has(stringResourceSheetId(row.fileId, row.sheetName))
   );
 }
 
@@ -642,8 +646,14 @@ function setStringResourceUploadStatus(message) {
   elements.stringResourceUploadStatus.textContent = message;
 }
 
-function stringResourceSheetId(fileName, sheetName) {
-  return `${fileName}::${sheetName}`;
+function nextStringResourceFileId() {
+  const fileId = `string-resource-file-${state.stringResource.nextFileId}`;
+  state.stringResource.nextFileId += 1;
+  return fileId;
+}
+
+function stringResourceSheetId(fileId, sheetName) {
+  return `${fileId}::${sheetName}`;
 }
 
 async function loadMappingData() {

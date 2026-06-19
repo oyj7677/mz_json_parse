@@ -119,6 +119,23 @@ describe('upload-first UI structure', () => {
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
+
+    for (const appContract of [
+      'nextStringResourceFileId',
+      'stringResourceSheetId'
+    ]) {
+      assert.match(app, new RegExp(`\\b${appContract}\\b`));
+    }
+
+    assert.match(app, /nextFileId:\s*1/);
+    assert.match(app, /const fileId = nextStringResourceFileId\(\)/);
+    assert.match(app, /rows = normalized\.rows\.map\(\(row\) => \(\{ \.\.\.row, fileId \}\)\)/);
+    assert.match(app, /stringResourceSheetId\(fileId, summary\.name\)/);
+    assert.match(app, /stringResourceSheetId\(file\.fileId, summary\.name\)/);
+    assert.match(app, /stringResourceSheetId\(row\.fileId, row\.sheetName\)/);
+    assert.match(app, /files\.length === 0 && state\.stringResource\.errors\.length === 0/);
+    assert.doesNotMatch(app, /stringResourceSheetId\(file\.fileName, summary\.name\)/);
+    assert.doesNotMatch(app, /stringResourceSheetId\(row\.fileName, row\.sheetName\)/);
   });
 
   it('declares local SheetJS vendor loading for Excel parsing', async () => {
