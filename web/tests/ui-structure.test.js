@@ -134,6 +134,11 @@ describe('upload-first UI structure', () => {
     assert.match(app, /stringResourceSheetId\(file\.fileId, summary\.name\)/);
     assert.match(app, /stringResourceSheetId\(row\.fileId, row\.sheetName\)/);
     assert.match(app, /files\.length === 0 && state\.stringResource\.errors\.length === 0/);
+    assert.match(app, /\uC790\uB3D9 \uAC10\uC9C0/);
+    assert.match(app, /\uC218\uB3D9 \uC120\uD0DD \uAC00\uB2A5/);
+    assert.match(app, /summary\.name.*\u00B7.*summary\.rowCount/);
+    assert.doesNotMatch(app, /'\?\? \?\?'/);
+    assert.doesNotMatch(app, /'\?\? \?\? \?\?'/);
     assert.doesNotMatch(app, /stringResourceSheetId\(file\.fileName, summary\.name\)/);
     assert.doesNotMatch(app, /stringResourceSheetId\(row\.fileName, row\.sheetName\)/);
   });

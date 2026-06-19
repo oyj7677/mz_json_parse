@@ -606,7 +606,7 @@ function renderStringResourceSheets() {
       checkbox.addEventListener('change', () => toggleStringResourceSheet(sheetId));
 
       const text = document.createElement('span');
-      text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${summary.isCandidate ? '?? ??' : '?? ?? ??'}`;
+      text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${summary.isCandidate ? '자동 감지' : '수동 선택 가능'}`;
 
       label.append(checkbox, text);
       group.append(label);
