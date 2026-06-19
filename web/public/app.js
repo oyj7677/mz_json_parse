@@ -67,6 +67,7 @@ const state = {
   },
   stringResource: {
     errors: [],
+    expandedFileIds: new Set(),
     files: [],
     hiddenQualifiers: new Set(),
     modalRowId: '',
@@ -264,6 +265,7 @@ elements.clearStringResourceButton.addEventListener('click', () => {
   state.stringResource.nextFileId = 1;
   state.stringResource.query = '';
   state.stringResource.rows = [];
+  state.stringResource.expandedFileIds = new Set();
   state.stringResource.selectedSheetIds = new Set();
   state.stringResource.visibleQualifiers = [...STRING_RESOURCE_DEFAULT_QUALIFIERS];
   elements.stringResourceSearchInput.value = '';
@@ -570,10 +572,16 @@ async function registerStringResourceFiles(fileList) {
         sheetSummaries: normalized.sheetSummaries
       });
 
+      let hasCandidateSheet = false;
       for (const summary of normalized.sheetSummaries) {
         if (summary.isCandidate) {
+          hasCandidateSheet = true;
           state.stringResource.selectedSheetIds.add(stringResourceSheetId(fileId, summary.name));
         }
+      }
+
+      if (hasCandidateSheet) {
+        state.stringResource.expandedFileIds.add(fileId);
       }
 
       addedCount += 1;
@@ -610,36 +618,110 @@ function renderStringResourceSheets() {
     return;
   }
 
-  const fragment = document.createDocumentFragment();
+  const tree = document.createElement('div');
+  tree.className = 'string-resource-sheet-tree';
+
   for (const file of state.stringResource.files) {
-    const group = document.createElement('section');
-    group.className = 'string-resource-sheet-group';
-
-    const title = document.createElement('h3');
-    title.textContent = file.fileName;
-    group.append(title);
-
-    for (const summary of file.sheetSummaries) {
-      const sheetId = stringResourceSheetId(file.fileId, summary.name);
-      const label = document.createElement('label');
-      label.className = 'string-resource-sheet-row';
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = state.stringResource.selectedSheetIds.has(sheetId);
-      checkbox.addEventListener('change', () => toggleStringResourceSheet(sheetId));
-
-      const text = document.createElement('span');
-      text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${summary.isCandidate ? '자동 감지' : '수동 선택 가능'}`;
-
-      label.append(checkbox, text);
-      group.append(label);
-    }
-
-    fragment.append(group);
+    tree.append(renderStringResourceFileNode(file));
   }
 
-  elements.stringResourceSheetList.append(fragment);
+  elements.stringResourceSheetList.append(tree);
+}
+
+function renderStringResourceFileNode(file) {
+  const selectedCount = countSelectedStringResourceSheets(file);
+  const totalCount = file.sheetSummaries.length;
+  const isExpanded = state.stringResource.expandedFileIds.has(file.fileId);
+  const node = document.createElement('section');
+  node.className = 'string-resource-file-node';
+
+  const header = document.createElement('div');
+  header.className = 'string-resource-file-row';
+
+  const toggleButton = document.createElement('button');
+  toggleButton.className = 'string-resource-tree-toggle';
+  toggleButton.type = 'button';
+  toggleButton.textContent = isExpanded ? '▾' : '▸';
+  toggleButton.setAttribute('aria-expanded', String(isExpanded));
+  toggleButton.setAttribute('aria-label', isExpanded ? 'Collapse file sheets' : 'Expand file sheets');
+  toggleButton.addEventListener('click', () => toggleStringResourceFileNode(file.fileId));
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = totalCount > 0 && selectedCount === totalCount;
+  checkbox.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+  checkbox.setAttribute('aria-label', `${file.fileName} all sheets`);
+  checkbox.addEventListener('change', () => toggleStringResourceFileSheets(file, checkbox.checked));
+
+  const titleButton = document.createElement('button');
+  titleButton.className = 'string-resource-file-title';
+  titleButton.type = 'button';
+  titleButton.textContent = file.fileName;
+  titleButton.title = file.fileName;
+  titleButton.addEventListener('click', () => toggleStringResourceFileNode(file.fileId));
+
+  const count = document.createElement('span');
+  count.className = 'string-resource-file-count';
+  count.textContent = `${selectedCount.toLocaleString()}/${totalCount.toLocaleString()}`;
+
+  header.append(toggleButton, checkbox, titleButton, count);
+  node.append(header);
+
+  if (isExpanded) {
+    const body = document.createElement('div');
+    body.className = 'string-resource-sheet-tree-body';
+    for (const summary of file.sheetSummaries) {
+      body.append(renderStringResourceSheetNode(file, summary));
+    }
+    node.append(body);
+  }
+
+  return node;
+}
+
+function renderStringResourceSheetNode(file, summary) {
+  const sheetId = stringResourceSheetId(file.fileId, summary.name);
+  const label = document.createElement('label');
+  label.className = 'string-resource-sheet-row';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = state.stringResource.selectedSheetIds.has(sheetId);
+  checkbox.addEventListener('change', () => toggleStringResourceSheet(sheetId));
+
+  const detectionLabel = summary.isCandidate ? '자동 감지' : '수동 선택 가능';
+  const text = document.createElement('span');
+  text.textContent = `${summary.name} · ${summary.rowCount.toLocaleString()} rows · ${detectionLabel}`;
+
+  label.append(checkbox, text);
+  return label;
+}
+
+function countSelectedStringResourceSheets(file) {
+  return file.sheetSummaries.filter((summary) =>
+    state.stringResource.selectedSheetIds.has(stringResourceSheetId(file.fileId, summary.name))
+  ).length;
+}
+
+function toggleStringResourceFileNode(fileId) {
+  if (state.stringResource.expandedFileIds.has(fileId)) {
+    state.stringResource.expandedFileIds.delete(fileId);
+  } else {
+    state.stringResource.expandedFileIds.add(fileId);
+  }
+  renderStringResource();
+}
+
+function toggleStringResourceFileSheets(file, shouldSelect) {
+  for (const summary of file.sheetSummaries) {
+    const sheetId = stringResourceSheetId(file.fileId, summary.name);
+    if (shouldSelect) {
+      state.stringResource.selectedSheetIds.add(sheetId);
+    } else {
+      state.stringResource.selectedSheetIds.delete(sheetId);
+    }
+  }
+  renderStringResource();
 }
 
 function toggleStringResourceSheet(sheetId) {
@@ -717,7 +799,7 @@ function stringResourceResultCountText(totalCount, renderedCount) {
 
 function renderStringResourceTableHeader(qualifiers) {
   const headerRow = document.createElement('tr');
-  for (const label of ['Resource ID', 'File', 'Sheet', ...qualifiers, '보기']) {
+  for (const label of ['Resource ID', ...qualifiers]) {
     const th = document.createElement('th');
     th.scope = 'col';
     th.textContent = label;
@@ -728,25 +810,29 @@ function renderStringResourceTableHeader(qualifiers) {
 
 function renderStringResourceTableRow(row, qualifiers) {
   const tr = document.createElement('tr');
-  appendStringResourceCell(tr, row.resourceId, 'string-resource-id-cell');
-  appendStringResourceCell(tr, row.fileName);
-  appendStringResourceCell(tr, `${row.sheetName} · row ${row.rowNumber}`);
+  appendStringResourceIdCell(tr, row);
 
   for (const qualifier of qualifiers) {
     appendStringResourceCell(tr, row.languages[qualifier] ?? '', 'string-resource-language-cell');
   }
 
-  const actionCell = document.createElement('td');
-  const button = document.createElement('button');
-  button.className = 'ghost-button';
-  button.type = 'button';
-  button.textContent = '보기';
-  button.addEventListener('click', () => openStringResourceDetail(row.id));
-  actionCell.append(button);
-  tr.append(actionCell);
   return tr;
 }
 
+function appendStringResourceIdCell(tableRow, row) {
+  const cell = document.createElement('td');
+  cell.className = 'string-resource-id-cell';
+
+  const button = document.createElement('button');
+  button.className = 'string-resource-id-button';
+  button.type = 'button';
+  button.textContent = row.resourceId;
+  button.title = `${row.fileName} · ${row.sheetName} · row ${row.rowNumber}`;
+  button.addEventListener('click', () => openStringResourceDetail(row.id));
+
+  cell.append(button);
+  tableRow.append(cell);
+}
 function appendStringResourceCell(row, value, className = '') {
   const cell = document.createElement('td');
   cell.textContent = String(value ?? '');

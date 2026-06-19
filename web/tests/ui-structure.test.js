@@ -113,6 +113,8 @@ describe('upload-first UI structure', () => {
 
     for (const contract of [
       'toggleStringResourceSheet',
+      'toggleStringResourceFileNode',
+      'toggleStringResourceFileSheets',
       'selectedStringResourceRows',
       'setStringResourceUploadStatus',
       'parseStringResourceWorkbookFile'
@@ -123,6 +125,8 @@ describe('upload-first UI structure', () => {
     for (const contract of [
       'renderStringResourceTableHeader',
       'renderStringResourceTableRow',
+      'renderStringResourceFileNode',
+      'renderStringResourceSheetNode',
       'renderStringResourceLanguageControls',
       'toggleStringResourceQualifier'
     ]) {
