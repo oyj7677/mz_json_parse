@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  convertSheetJsonToWorkbook,
+  getBrowserXlsx,
+  parseStringResourceWorkbookFile
+} from '../public/string-resource-xlsx.js';
+import {
   STRING_RESOURCE_DEFAULT_QUALIFIERS,
   detectStringResourceSheet,
   filterStringResourceRows,
@@ -86,6 +91,104 @@ const sampleWorkbook = {
     }
   ]
 };
+
+describe('String Resource XLSX adapter', () => {
+  it('converts SheetJS row arrays into normalized workbook sheets', () => {
+    const result = convertSheetJsonToWorkbook(
+      {
+        SheetNames: ['VR', 'Empty'],
+        Sheets: {
+          VR: [
+            ['', ' MOBIS LID ', 'English US'],
+            ['Header note', 'CID_001', 'Help.'],
+            [undefined, 'CID_002', undefined]
+          ],
+          Empty: []
+        }
+      },
+      'sample.xlsx'
+    );
+
+    assert.deepEqual(result, {
+      source: 'sample.xlsx',
+      sheets: [
+        {
+          name: 'VR',
+          rows: [
+            {
+              rowNumber: 1,
+              values: { 'Column 1': '', 'MOBIS LID': ' MOBIS LID ', 'English US': 'English US' }
+            },
+            {
+              rowNumber: 2,
+              values: { 'Column 1': 'Header note', 'MOBIS LID': 'CID_001', 'English US': 'Help.' }
+            },
+            {
+              rowNumber: 3,
+              values: { 'Column 1': '', 'MOBIS LID': 'CID_002', 'English US': '' }
+            }
+          ]
+        },
+        { name: 'Empty', rows: [] }
+      ]
+    });
+  });
+
+  it('parses an uploaded workbook file through SheetJS row arrays', async () => {
+    const buffer = new ArrayBuffer(4);
+    const calls = [];
+    const root = {
+      XLSX: {
+        read(input, options) {
+          calls.push(['read', input, options]);
+          return {
+            SheetNames: ['VR'],
+            Sheets: { VR: { marker: 'sheet' } }
+          };
+        },
+        utils: {
+          sheet_to_json(sheet, options) {
+            calls.push(['sheet_to_json', sheet, options]);
+            return [
+              ['MOBIS LID', 'English US'],
+              ['CID_001', 'Help.']
+            ];
+          }
+        }
+      }
+    };
+
+    const result = await parseStringResourceWorkbookFile(
+      { name: 'strings.xlsx', arrayBuffer: async () => buffer },
+      root
+    );
+
+    assert.deepEqual(calls, [
+      ['read', buffer, { type: 'array' }],
+      ['sheet_to_json', { marker: 'sheet' }, { header: 1, blankrows: false, defval: '' }]
+    ]);
+    assert.deepEqual(result, {
+      source: 'strings.xlsx',
+      sheets: [
+        {
+          name: 'VR',
+          rows: [
+            { rowNumber: 1, values: { 'MOBIS LID': 'MOBIS LID', 'English US': 'English US' } },
+            { rowNumber: 2, values: { 'MOBIS LID': 'CID_001', 'English US': 'Help.' } }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('throws a clear error when SheetJS is missing', () => {
+    assert.throws(() => getBrowserXlsx({}), /SheetJS XLSX library is not loaded/);
+    assert.throws(
+      () => getBrowserXlsx({ XLSX: { read() {}, utils: {} } }),
+      /SheetJS XLSX library is not loaded/
+    );
+  });
+});
 
 describe('String Resource Explorer helpers', () => {
   it('normalizes Excel language headers to Android resource qualifiers', () => {
