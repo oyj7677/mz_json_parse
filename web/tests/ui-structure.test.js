@@ -135,8 +135,15 @@ describe('upload-first UI structure', () => {
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
+    assert.match(app, /stringResourceDetailFocusReturnTarget/);
+    assert.match(app, /trapModalFocus\(event, elements\.stringResourceDetailModal\)/);
+    assert.match(app, /closeStringResourceDetail\(\)/);
+    assert.match(app, /restoreFocus\(stringResourceDetailFocusReturnTarget, fallbackTarget\)/);
+    assert.match(app, /rowExists[\s\S]*closeStringResourceDetail\(\)/);
     assert.match(css, /\.string-resource-detail-grid\s*{/);
     assert.match(css, /\.string-resource-value-row\s*{/);
+    assert.match(css, /\.string-resource-detail-body\s*{/);
+    assert.match(css, /\.string-resource-value-row span\s*{/);
     assert.match(css, /\.string-resource-language-cell\s*{/);
     assert.match(css, /\.string-resource-id-cell\s*{/);
     assert.match(app, /const STRING_RESOURCE_RESULT_RENDER_LIMIT = 500/);
@@ -436,7 +443,7 @@ describe('upload-first UI structure', () => {
       'toggleExplorerFileDrawer',
       'openExplorerModal',
       'closeExplorerModal',
-      'trapExplorerModalFocus',
+      'trapModalFocus',
       'removeExplorerItem',
       'initializeExplorerColumnResizing',
       'applyExplorerColumnWidths',
@@ -454,7 +461,7 @@ describe('upload-first UI structure', () => {
     assert.match(app, /localStorage\.getItem\(EXPLORER_COLUMN_STORAGE_KEY/);
     assert.match(app, /\blet\s+explorerModalFocusReturnTarget\s*=/);
     assert.match(app, /\blet\s+explorerDrawerFocusReturnTarget\s*=/);
-    assert.match(app, /trapExplorerModalFocus\(event\)/);
+    assert.match(app, /trapModalFocus\(event, elements\.explorerModal\)/);
     const keydownIndex = app.indexOf("document.addEventListener('keydown'");
     const modalEscapeIndex = app.indexOf('closeExplorerModal()', keydownIndex);
     const suggestionsEscapeIndex = app.indexOf('!elements.explorerSuggestions.hidden', modalEscapeIndex);

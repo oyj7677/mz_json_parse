@@ -214,6 +214,7 @@ let activeHelpStep = 0;
 let helpFocusReturnTarget = null;
 let explorerModalFocusReturnTarget = null;
 let explorerDrawerFocusReturnTarget = null;
+let stringResourceDetailFocusReturnTarget = null;
 let explorerColumnWidths = loadExplorerColumnWidths();
 
 elements.openFormatterButton.addEventListener('click', () => {
@@ -416,8 +417,13 @@ elements.helpOverlay.addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Tab' && !elements.stringResourceDetailModal.hidden) {
+    trapModalFocus(event, elements.stringResourceDetailModal);
+    return;
+  }
+
   if (event.key === 'Tab' && !elements.explorerModal.hidden) {
-    trapExplorerModalFocus(event);
+    trapModalFocus(event, elements.explorerModal);
     return;
   }
 
@@ -427,6 +433,11 @@ document.addEventListener('keydown', (event) => {
 
   if (!elements.helpOverlay.hidden) {
     closeHelp();
+    return;
+  }
+
+  if (!elements.stringResourceDetailModal.hidden) {
+    closeStringResourceDetail();
     return;
   }
 
@@ -582,7 +593,12 @@ function renderStringResource() {
   renderStringResourceSheets();
   renderStringResourceResults();
   if (!elements.stringResourceDetailModal.hidden) {
-    renderStringResourceDetail();
+    const rowExists = state.stringResource.rows.some((item) => item.id === state.stringResource.modalRowId);
+    if (rowExists) {
+      renderStringResourceDetail();
+    } else {
+      closeStringResourceDetail();
+    }
   }
 }
 
@@ -779,6 +795,9 @@ function toggleStringResourceQualifier(qualifier) {
 }
 
 function openStringResourceDetail(rowId) {
+  stringResourceDetailFocusReturnTarget = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null;
   state.stringResource.modalRowId = rowId;
   renderStringResourceDetail();
   elements.stringResourceDetailModal.hidden = false;
@@ -786,8 +805,11 @@ function openStringResourceDetail(rowId) {
 }
 
 function closeStringResourceDetail() {
+  const fallbackTarget = elements.stringResourceSearchInput;
   state.stringResource.modalRowId = '';
   elements.stringResourceDetailModal.hidden = true;
+  restoreFocus(stringResourceDetailFocusReturnTarget, fallbackTarget);
+  stringResourceDetailFocusReturnTarget = null;
 }
 
 function renderStringResourceDetail() {
@@ -1483,7 +1505,7 @@ function openExplorerFileDrawer() {
 function closeExplorerFileDrawer() {
   state.explorer.isFileDrawerOpen = false;
   renderExplorerFileDrawer();
-  restoreExplorerFocus(explorerDrawerFocusReturnTarget, elements.toggleExplorerFilesButton);
+  restoreFocus(explorerDrawerFocusReturnTarget, elements.toggleExplorerFilesButton);
   explorerDrawerFocusReturnTarget = null;
 }
 
@@ -1562,7 +1584,7 @@ function openExplorerModal(id) {
 function closeExplorerModal() {
   state.explorer.modalItemId = null;
   renderExplorerModal();
-  restoreExplorerFocus(explorerModalFocusReturnTarget, elements.explorerSearchInput);
+  restoreFocus(explorerModalFocusReturnTarget, elements.explorerSearchInput);
   explorerModalFocusReturnTarget = null;
 }
 
@@ -1591,15 +1613,15 @@ function renderExplorerModal() {
   elements.explorerModalJson.textContent = formatDownloadContent(item);
 }
 
-function restoreExplorerFocus(savedTarget, fallbackTarget) {
+function restoreFocus(savedTarget, fallbackTarget) {
   const focusTarget = savedTarget instanceof HTMLElement && savedTarget.isConnected
     ? savedTarget
     : fallbackTarget;
   focusTarget?.focus();
 }
 
-function trapExplorerModalFocus(event) {
-  const focusableElements = getExplorerModalFocusableElements();
+function trapModalFocus(event, modalElement) {
+  const focusableElements = getModalFocusableElements(modalElement);
 
   if (focusableElements.length === 0) {
     event.preventDefault();
@@ -1612,7 +1634,7 @@ function trapExplorerModalFocus(event) {
     ? document.activeElement
     : null;
 
-  if (!activeElement || !elements.explorerModal.contains(activeElement)) {
+  if (!activeElement || !modalElement.contains(activeElement)) {
     event.preventDefault();
     firstFocusable.focus();
     return;
@@ -1630,7 +1652,7 @@ function trapExplorerModalFocus(event) {
   }
 }
 
-function getExplorerModalFocusableElements() {
+function getModalFocusableElements(modalElement) {
   const focusableSelector = [
     'a[href]',
     'button:not([disabled])',
@@ -1640,7 +1662,7 @@ function getExplorerModalFocusableElements() {
     '[tabindex]:not([tabindex="-1"])'
   ].join(',');
 
-  return Array.from(elements.explorerModal.querySelectorAll(focusableSelector))
+  return Array.from(modalElement.querySelectorAll(focusableSelector))
     .filter((element) => element instanceof HTMLElement && !element.hidden);
 }
 
