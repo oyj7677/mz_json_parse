@@ -1,6 +1,6 @@
 export function getBrowserXlsx(root = globalThis) {
   const xlsx = root?.XLSX;
-  if (!xlsx?.read || !xlsx?.utils?.sheet_to_json) {
+  if (typeof xlsx?.read !== 'function' || typeof xlsx?.utils?.sheet_to_json !== 'function') {
     throw new Error('SheetJS XLSX library is not loaded. Run npm run prepare:vendor and include ./vendor/xlsx.full.min.js.');
   }
   return xlsx;
@@ -40,8 +40,12 @@ function rowsToObjects(rows) {
     return [];
   }
 
-  const header = rows[0].map((value, index) => {
-    const text = String(value ?? '').trim();
+  const columnCount = rows.reduce(
+    (maxColumnCount, row) => Math.max(maxColumnCount, Array.isArray(row) ? row.length : 0),
+    0
+  );
+  const header = Array.from({ length: columnCount }, (_, index) => {
+    const text = String(rows[0]?.[index] ?? '').trim();
     return text || `Column ${index + 1}`;
   });
 

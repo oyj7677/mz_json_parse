@@ -93,15 +93,19 @@ const sampleWorkbook = {
 };
 
 describe('String Resource XLSX adapter', () => {
-  it('converts SheetJS row arrays into normalized workbook sheets', () => {
+  it('converts sparse SheetJS row arrays into normalized workbook sheets', () => {
+    const sparseHeader = [];
+    sparseHeader[1] = ' MOBIS LID ';
+    sparseHeader[2] = 'English US';
+
     const result = convertSheetJsonToWorkbook(
       {
         SheetNames: ['VR', 'Empty'],
         Sheets: {
           VR: [
-            ['', ' MOBIS LID ', 'English US'],
-            ['Header note', 'CID_001', 'Help.'],
-            [undefined, 'CID_002', undefined]
+            sparseHeader,
+            ['Header note', 'CID_001', 'Help.', 'Metadata'],
+            [undefined, 'CID_002', undefined, 'Trailing value']
           ],
           Empty: []
         }
@@ -117,15 +121,30 @@ describe('String Resource XLSX adapter', () => {
           rows: [
             {
               rowNumber: 1,
-              values: { 'Column 1': '', 'MOBIS LID': ' MOBIS LID ', 'English US': 'English US' }
+              values: {
+                'Column 1': '',
+                'MOBIS LID': ' MOBIS LID ',
+                'English US': 'English US',
+                'Column 4': ''
+              }
             },
             {
               rowNumber: 2,
-              values: { 'Column 1': 'Header note', 'MOBIS LID': 'CID_001', 'English US': 'Help.' }
+              values: {
+                'Column 1': 'Header note',
+                'MOBIS LID': 'CID_001',
+                'English US': 'Help.',
+                'Column 4': 'Metadata'
+              }
             },
             {
               rowNumber: 3,
-              values: { 'Column 1': '', 'MOBIS LID': 'CID_002', 'English US': '' }
+              values: {
+                'Column 1': '',
+                'MOBIS LID': 'CID_002',
+                'English US': '',
+                'Column 4': 'Trailing value'
+              }
             }
           ]
         },
@@ -184,7 +203,11 @@ describe('String Resource XLSX adapter', () => {
   it('throws a clear error when SheetJS is missing', () => {
     assert.throws(() => getBrowserXlsx({}), /SheetJS XLSX library is not loaded/);
     assert.throws(
-      () => getBrowserXlsx({ XLSX: { read() {}, utils: {} } }),
+      () => getBrowserXlsx({ XLSX: { read: true, utils: { sheet_to_json() {} } } }),
+      /SheetJS XLSX library is not loaded/
+    );
+    assert.throws(
+      () => getBrowserXlsx({ XLSX: { read() {}, utils: { sheet_to_json: true } } }),
       /SheetJS XLSX library is not loaded/
     );
   });
