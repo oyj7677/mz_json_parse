@@ -3,18 +3,53 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>JSON Formatter</title>
+    <title>MZ Tools</title>
     <link rel="stylesheet" href="./styles.css">
     <script type="module" src="./app.js"></script>
   </head>
   <body>
-    <main class="app-shell">
+    <main class="tool-hub-shell" id="toolHub">
+      <header class="hub-header">
+        <div>
+          <h1>MZ Tools</h1>
+          <p class="summary">팀 작업 도구</p>
+        </div>
+      </header>
+
+      <section class="tool-grid" aria-label="팀 도구 목록">
+        <button class="tool-card" id="openFormatterButton" type="button">
+          <span class="tool-card-kicker">JSON</span>
+          <strong>JSON Formatter</strong>
+          <span>JSON 파일명 정리 / ZIP 다운로드</span>
+          <em>사용하기</em>
+        </button>
+
+        <button class="tool-card" id="openExplorerButton" type="button">
+          <span class="tool-card-kicker">Search</span>
+          <strong>JSON Explorer</strong>
+          <span>recognitionText 중심 탐색</span>
+          <em>사용하기</em>
+        </button>
+
+        <button class="tool-card" id="openMappingButton" type="button">
+          <span class="tool-card-kicker">Mapping</span>
+          <strong>Mapping Table Explorer</strong>
+          <span>발화, 인텐션, 슬롯 기준 매핑 탐색</span>
+          <em>사용하기</em>
+        </button>
+      </section>
+    </main>
+
+    <main class="app-shell tool-view" id="formatterApp" hidden>
       <header class="topbar">
         <div>
           <h1>JSON Formatter</h1>
           <p class="summary" id="summaryText">등록된 JSON 0개</p>
         </div>
         <div class="topbar-actions">
+          <button class="ghost-button" id="backToHubButton" type="button">
+            도구 목록
+          </button>
           <button
             class="ghost-button"
             id="openHelpButton"
@@ -110,6 +145,257 @@
         </aside>
       </section>
     </main>
+
+    <main class="app-shell tool-view" id="explorerApp" hidden>
+      <header class="topbar">
+        <div>
+          <h1>JSON Explorer</h1>
+          <p class="summary" id="explorerCount">등록된 JSON 0개</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="backToHubFromExplorerButton" type="button">
+            도구 목록
+          </button>
+        </div>
+      </header>
+
+      <section class="explorer-workspace" aria-label="JSON Explorer workspace">
+        <div class="explorer-toolbar" id="explorerToolbar" aria-label="JSON Explorer controls">
+          <div class="upload-strip">
+            <label class="file-picker" for="explorerFileInput">JSON 파일 선택</label>
+            <input id="explorerFileInput" type="file" accept=".json,application/json" multiple>
+            <label class="file-picker" for="explorerFolderInput">JSON 폴더 선택</label>
+            <input id="explorerFolderInput" type="file" accept=".json,application/json" webkitdirectory multiple>
+            <span id="explorerUploadStatus" aria-live="polite">JSON 파일을 선택하거나 폴더를 선택하세요.</span>
+          </div>
+
+          <div class="explorer-toolbar-meta" aria-label="JSON Explorer status">
+            <span id="explorerFileCount">등록된 파일 0개</span>
+            <span id="explorerResultCount">검색 결과 0개</span>
+          </div>
+
+          <button
+            class="ghost-button"
+            id="toggleExplorerFilesButton"
+            type="button"
+            aria-expanded="false"
+            aria-controls="explorerFileDrawer"
+          >
+            등록 파일 보기
+          </button>
+          <button class="ghost-button" id="clearExplorerButton" type="button" disabled>
+            목록 비우기
+          </button>
+        </div>
+
+        <section class="explorer-search-area" id="explorerSearchArea" aria-label="JSON Explorer search">
+          <label class="search-field" for="explorerSearchInput">
+            <span>통합 검색</span>
+            <input
+              id="explorerSearchInput"
+              type="search"
+              autocomplete="off"
+              aria-controls="explorerSuggestions"
+              aria-expanded="false"
+              aria-autocomplete="list"
+              placeholder="recognitionText, 파일명, slot, contentType 등으로 검색"
+            >
+          </label>
+          <div class="explorer-suggestions" id="explorerSuggestions" role="listbox" aria-label="검색 제안" hidden></div>
+        </section>
+
+        <section class="explorer-results" id="explorerResults" aria-live="polite">
+          <div class="empty-state" id="explorerEmptyState">recognitionText 또는 파일명 등으로 검색하세요.</div>
+          <div class="explorer-table-shell" id="explorerTableShell" hidden>
+            <table class="explorer-table" id="explorerTable">
+              <colgroup>
+                <col data-explorer-column="sourceFilename">
+                <col data-explorer-column="recognitionText">
+                <col data-explorer-column="language">
+                <col data-explorer-column="slot">
+                <col data-explorer-column="contentType">
+                <col data-explorer-column="tableVersion">
+                <col data-explorer-column="actions">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col" data-explorer-column="sourceFilename">
+                    <span class="explorer-column-label">파일명</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="sourceFilename" aria-label="파일명 열 너비 조절"></button>
+                  </th>
+                  <th scope="col" data-explorer-column="recognitionText">
+                    <span class="explorer-column-label">recognitionText</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="recognitionText" aria-label="recognitionText 열 너비 조절"></button>
+                  </th>
+                  <th scope="col" data-explorer-column="language">
+                    <span class="explorer-column-label">language</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="language" aria-label="language 열 너비 조절"></button>
+                  </th>
+                  <th scope="col" data-explorer-column="slot">
+                    <span class="explorer-column-label">slot</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="slot" aria-label="slot 열 너비 조절"></button>
+                  </th>
+                  <th scope="col" data-explorer-column="contentType">
+                    <span class="explorer-column-label">contentType</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="contentType" aria-label="contentType 열 너비 조절"></button>
+                  </th>
+                  <th scope="col" data-explorer-column="tableVersion">
+                    <span class="explorer-column-label">table_version</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="tableVersion" aria-label="table_version 열 너비 조절"></button>
+                  </th>
+                  <th scope="col" data-explorer-column="actions">
+                    <span class="explorer-column-label">보기</span>
+                    <button class="explorer-table-resizer" type="button" data-explorer-column="actions" aria-label="보기 열 너비 조절"></button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="explorerTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside
+          class="explorer-file-drawer"
+          id="explorerFileDrawer"
+          aria-labelledby="explorerFileDrawerTitle"
+          hidden
+        >
+          <div class="panel-header">
+            <div>
+              <h2 id="explorerFileDrawerTitle">등록 파일</h2>
+              <p id="explorerDrawerCount">등록된 파일 0개</p>
+            </div>
+            <button
+              class="ghost-button"
+              id="closeExplorerFilesButton"
+              type="button"
+              aria-label="등록 파일 닫기"
+            >
+              닫기
+            </button>
+          </div>
+          <div class="explorer-registered-list" id="explorerRegisteredList" aria-live="polite">
+            <div class="empty-state compact-empty">등록된 파일이 없습니다.</div>
+          </div>
+        </aside>
+      </section>
+
+      <div
+        class="explorer-modal"
+        id="explorerModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="explorerModalTitle"
+        hidden
+      >
+        <button
+          class="explorer-modal-backdrop"
+          id="explorerModalBackdrop"
+          type="button"
+          aria-label="JSON 상세 닫기"
+        ></button>
+        <section class="explorer-modal-panel">
+          <div class="panel-header">
+            <div>
+              <h2 id="explorerModalTitle">JSON 상세</h2>
+              <p id="explorerModalMeta">선택된 JSON이 없습니다.</p>
+            </div>
+            <button
+              class="ghost-button"
+              id="closeExplorerModalButton"
+              type="button"
+              aria-label="JSON 상세 닫기"
+            >
+              닫기
+            </button>
+          </div>
+          <pre class="json-preview" id="explorerModalJson">JSON 상세를 선택하세요.</pre>
+        </section>
+      </div>
+    </main>
+
+    <main class="app-shell tool-view" id="mappingApp" hidden>
+      <header class="topbar">
+        <div>
+          <h1>Mapping Table Explorer</h1>
+          <p class="summary" id="mappingCount">Mapping table loading</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="backToHubFromMappingButton" type="button">
+            도구 목록
+          </button>
+        </div>
+      </header>
+
+      <section class="mapping-workspace" aria-label="Mapping Table Explorer workspace">
+        <section class="mapping-workflow" aria-label="Mapping Table search workflow">
+          <section class="mapping-search-panel" aria-live="polite">
+            <div class="result-head">
+              <div>
+                <h2>GROUP INTENTIONS 검색</h2>
+                <p id="mappingGroupResultCount">GROUP INTENTIONS 0개</p>
+              </div>
+            </div>
+
+            <label class="search-field" for="mappingGroupSearchInput">
+              <span>대표 명령어 / 발화 패턴</span>
+              <input
+                id="mappingGroupSearchInput"
+                type="search"
+                autocomplete="off"
+                placeholder="예: Next station, Music* | Weather"
+              >
+            </label>
+            <p class="inline-status" id="mappingStatus" aria-live="polite">Mapping table data를 불러오는 중입니다.</p>
+
+            <div class="empty-state" id="mappingGroupEmptyState">대표 명령어 또는 발화 패턴을 검색하세요.</div>
+            <div class="mapping-table-shell" id="mappingGroupTableShell" hidden>
+              <table class="mapping-table mapping-group-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Row</th>
+                    <th scope="col">Domain</th>
+                    <th scope="col">대표 명령어</th>
+                    <th scope="col">발화 패턴</th>
+                    <th scope="col">Intention</th>
+                    <th scope="col">Mapping Intent</th>
+                    <th scope="col">Slot</th>
+                  </tr>
+                </thead>
+                <tbody id="mappingGroupTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="mapping-slot-results" aria-live="polite">
+            <div class="result-head">
+              <div>
+                <h2>SLOT REFERENCE</h2>
+                <p id="mappingSlotResultCount">SLOT REFERENCE 0개</p>
+              </div>
+            </div>
+
+            <div class="empty-state" id="mappingSlotEmptyState">GROUP INTENTIONS 결과 행을 선택하면 Slot Reference가 표시됩니다.</div>
+            <div class="mapping-table-shell" id="mappingSlotTableShell" hidden>
+              <table class="mapping-table mapping-slot-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Slot Reference</th>
+                    <th scope="col">Slot name</th>
+                    <th scope="col">Slot Value</th>
+                    <th scope="col">Slot Canonical</th>
+                    <th scope="col">발화 패턴</th>
+                    <th scope="col">비고</th>
+                  </tr>
+                </thead>
+                <tbody id="mappingSlotTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
     <div class="help-overlay" id="helpOverlay" hidden>
       <button class="help-backdrop" type="button" data-help-close aria-label="도움말 닫기"></button>
       <div class="help-spotlight" id="helpSpotlight" aria-hidden="true"></div>
