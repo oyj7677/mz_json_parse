@@ -280,6 +280,57 @@ export function resolveStringResourceQualifiers(rows) {
   return [...fixed, ...extras];
 }
 
+export function orderStringResourceQualifiers(qualifiers) {
+  const detected = new Set(qualifiers ?? []);
+  const fixed = STRING_RESOURCE_DEFAULT_QUALIFIERS.filter((qualifier) => detected.has(qualifier));
+  const extras = [...detected]
+    .filter((qualifier) => !STRING_RESOURCE_DEFAULT_QUALIFIERS.includes(qualifier))
+    .sort((left, right) => left.localeCompare(right));
+
+  return [...fixed, ...extras];
+}
+
+export function resolveStringResourceVisibleQualifierState({
+  availableQualifiers = [],
+  hiddenQualifiers = [],
+  visibleQualifiers = []
+} = {}) {
+  const visible = new Set(visibleQualifiers);
+  const hidden = new Set(hiddenQualifiers);
+
+  for (const qualifier of availableQualifiers) {
+    if (!hidden.has(qualifier)) {
+      visible.add(qualifier);
+    }
+  }
+
+  return {
+    hiddenQualifiers: orderStringResourceQualifiers(hidden),
+    visibleQualifiers: orderStringResourceQualifiers(visible)
+  };
+}
+
+export function toggleStringResourceVisibleQualifier({
+  hiddenQualifiers = [],
+  visibleQualifiers = []
+} = {}, qualifier) {
+  const visible = new Set(visibleQualifiers);
+  const hidden = new Set(hiddenQualifiers);
+
+  if (visible.has(qualifier)) {
+    visible.delete(qualifier);
+    hidden.add(qualifier);
+  } else {
+    visible.add(qualifier);
+    hidden.delete(qualifier);
+  }
+
+  return {
+    hiddenQualifiers: orderStringResourceQualifiers(hidden),
+    visibleQualifiers: orderStringResourceQualifiers(visible)
+  };
+}
+
 export function filterStringResourceRows(rows, query) {
   const sourceRows = Array.isArray(rows) ? rows : [];
   const groups = String(query ?? '')

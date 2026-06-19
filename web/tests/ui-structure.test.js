@@ -132,11 +132,9 @@ describe('upload-first UI structure', () => {
     assert.match(css, /\.string-resource-id-cell\s*{/);
     assert.match(app, /const STRING_RESOURCE_RESULT_RENDER_LIMIT = 500/);
     assert.match(app, /syncStringResourceVisibleQualifiers/);
+    assert.match(app, /resolveStringResourceVisibleQualifierState/);
+    assert.match(app, /toggleStringResourceVisibleQualifier/);
     assert.match(app, /hiddenQualifiers:\s*new Set\(\)/);
-    assert.match(app, /hiddenQualifiers\.has\(qualifier\)/);
-    assert.match(app, /hiddenQualifiers\.add\(qualifier\)/);
-    assert.match(app, /hiddenQualifiers\.delete\(qualifier\)/);
-    assert.match(app, /orderStringResourceQualifiers/);
     assert.match(app, /stringResourceResultCountText/);
     assert.match(app, /filteredRows\.slice\(0, STRING_RESOURCE_RESULT_RENDER_LIMIT\)/);
     assert.match(app, /\uBA3C\uC800 \${renderedCount\.toLocaleString\(\)}\uAC1C \uD45C\uC2DC/);

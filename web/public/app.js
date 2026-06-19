@@ -25,7 +25,9 @@ import {
   filterStringResourceRows,
   normalizeStringResourceWorkbook,
   resolveStringResourceQualifiers,
-  STRING_RESOURCE_DEFAULT_QUALIFIERS
+  resolveStringResourceVisibleQualifierState,
+  STRING_RESOURCE_DEFAULT_QUALIFIERS,
+  toggleStringResourceVisibleQualifier
 } from './string-resource-core.js';
 import { parseStringResourceWorkbookFile } from './string-resource-xlsx.js';
 
@@ -678,19 +680,13 @@ function renderStringResourceResults() {
 }
 
 function syncStringResourceVisibleQualifiers(availableQualifiers) {
-  const current = new Set(state.stringResource.visibleQualifiers);
-  for (const qualifier of availableQualifiers) {
-    if (!state.stringResource.hiddenQualifiers.has(qualifier)) {
-      current.add(qualifier);
-    }
-  }
-  state.stringResource.visibleQualifiers = orderStringResourceQualifiers([...current]);
-}
-
-function orderStringResourceQualifiers(qualifiers) {
-  const set = new Set(qualifiers);
-  return [...STRING_RESOURCE_DEFAULT_QUALIFIERS, ...[...set].sort()]
-    .filter((item, index, array) => array.indexOf(item) === index && set.has(item));
+  const nextState = resolveStringResourceVisibleQualifierState({
+    availableQualifiers,
+    hiddenQualifiers: state.stringResource.hiddenQualifiers,
+    visibleQualifiers: state.stringResource.visibleQualifiers
+  });
+  state.stringResource.hiddenQualifiers = new Set(nextState.hiddenQualifiers);
+  state.stringResource.visibleQualifiers = nextState.visibleQualifiers;
 }
 
 function stringResourceResultCountText(totalCount, renderedCount) {
@@ -770,15 +766,12 @@ function renderStringResourceLanguageControls(availableQualifiers) {
 }
 
 function toggleStringResourceQualifier(qualifier) {
-  const set = new Set(state.stringResource.visibleQualifiers);
-  if (set.has(qualifier)) {
-    set.delete(qualifier);
-    state.stringResource.hiddenQualifiers.add(qualifier);
-  } else {
-    set.add(qualifier);
-    state.stringResource.hiddenQualifiers.delete(qualifier);
-  }
-  state.stringResource.visibleQualifiers = orderStringResourceQualifiers([...set]);
+  const nextState = toggleStringResourceVisibleQualifier({
+    hiddenQualifiers: state.stringResource.hiddenQualifiers,
+    visibleQualifiers: state.stringResource.visibleQualifiers
+  }, qualifier);
+  state.stringResource.hiddenQualifiers = new Set(nextState.hiddenQualifiers);
+  state.stringResource.visibleQualifiers = nextState.visibleQualifiers;
   renderStringResource();
 }
 

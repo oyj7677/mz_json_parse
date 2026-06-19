@@ -11,7 +11,9 @@ import {
   filterStringResourceRows,
   normalizeStringResourceQualifier,
   normalizeStringResourceWorkbook,
-  resolveStringResourceQualifiers
+  resolveStringResourceQualifiers,
+  resolveStringResourceVisibleQualifierState,
+  toggleStringResourceVisibleQualifier
 } from '../public/string-resource-core.js';
 
 const sampleWorkbook = {
@@ -355,6 +357,26 @@ describe('String Resource Explorer helpers', () => {
       { column: 'English US', value: 'Help.' },
       { column: 'values-en-rUS', value: 'Assistance.' }
     ]);
+  });
+
+  it('preserves explicitly hidden non-default qualifiers across auto-sync', () => {
+    const synced = resolveStringResourceVisibleQualifierState({
+      availableQualifiers: ['it-rIT'],
+      hiddenQualifiers: [],
+      visibleQualifiers: STRING_RESOURCE_DEFAULT_QUALIFIERS
+    });
+    assert.ok(synced.visibleQualifiers.includes('it-rIT'));
+
+    const toggled = toggleStringResourceVisibleQualifier(synced, 'it-rIT');
+    assert.ok(!toggled.visibleQualifiers.includes('it-rIT'));
+    assert.ok(toggled.hiddenQualifiers.includes('it-rIT'));
+
+    const resynced = resolveStringResourceVisibleQualifierState({
+      availableQualifiers: ['it-rIT'],
+      hiddenQualifiers: toggled.hiddenQualifiers,
+      visibleQualifiers: toggled.visibleQualifiers
+    });
+    assert.ok(!resynced.visibleQualifiers.includes('it-rIT'));
   });
 
   it('orders detected qualifiers after fixed defaults', () => {
