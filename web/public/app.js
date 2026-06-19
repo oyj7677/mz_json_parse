@@ -250,6 +250,19 @@ elements.stringResourceFileInput.addEventListener('change', async () => {
   elements.stringResourceFileInput.value = '';
 });
 
+elements.clearStringResourceButton.addEventListener('click', () => {
+  state.stringResource.errors = [];
+  state.stringResource.files = [];
+  state.stringResource.modalRowId = '';
+  state.stringResource.query = '';
+  state.stringResource.rows = [];
+  state.stringResource.selectedSheetIds = new Set();
+  state.stringResource.visibleQualifiers = [...STRING_RESOURCE_DEFAULT_QUALIFIERS];
+  elements.stringResourceSearchInput.value = '';
+  setStringResourceUploadStatus('??? ??? ??? ??? ?????.');
+  renderStringResource();
+});
+
 elements.stringResourceLanguageButton.addEventListener('click', () => {
   const nextHidden = !elements.stringResourceLanguagePanel.hidden;
   elements.stringResourceLanguagePanel.hidden = nextHidden;
@@ -516,11 +529,19 @@ function showStringResourceTool() {
   renderStringResource();
 }
 
-async function registerStringResourceFiles() {
+async function registerStringResourceFiles(fileList) {
+  const files = Array.from(fileList ?? []);
+  setStringResourceUploadStatus(
+    files.length === 0
+      ? '??? ?? ??? ????.'
+      : `${files.length.toLocaleString()}? ??? ???????. ?? ???? ?? ??? ?????.`
+  );
   renderStringResource();
 }
 
 function renderStringResource() {
+  elements.stringResourceCount.textContent = `???? ?? ${state.stringResource.files.length.toLocaleString()}?`;
+  elements.clearStringResourceButton.disabled = state.stringResource.files.length === 0;
   renderStringResourceSheets();
   renderStringResourceResults();
 }
@@ -534,6 +555,10 @@ function openStringResourceDetail() {}
 function closeStringResourceDetail() {
   state.stringResource.modalRowId = '';
   elements.stringResourceDetailModal.hidden = true;
+}
+
+function setStringResourceUploadStatus(message) {
+  elements.stringResourceUploadStatus.textContent = message;
 }
 
 async function loadMappingData() {
