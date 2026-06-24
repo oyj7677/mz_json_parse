@@ -6,6 +6,32 @@
       "maxDuration": 10
     }
   },
+  "rewrites": [
+    {
+      "source": "/formatter",
+      "destination": "/"
+    },
+    {
+      "source": "/explorer",
+      "destination": "/"
+    },
+    {
+      "source": "/json-editor",
+      "destination": "/"
+    },
+    {
+      "source": "/mapping-table",
+      "destination": "/"
+    },
+    {
+      "source": "/string-resource",
+      "destination": "/"
+    },
+    {
+      "source": "/admin",
+      "destination": "/"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

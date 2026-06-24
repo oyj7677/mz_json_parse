@@ -1,0 +1,12 @@
+.git
+.superpowers
+.vercel
+logs
+*.log
+.env*
+web/.env*
+web/node_modules
+web/tests
+web/logs
+docs/superpowers
+web/docs/superpowers

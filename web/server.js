@@ -4,6 +4,16 @@ import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { translateFilenameText } from './api/translate-filename.js';
+import {
+  handleAdminBatchDeleteRequest,
+  handleAdminImportRequest,
+  handleAdminRecordDeleteRequest,
+  handleAdminStatusRequest,
+  handleJsonRecordDetailRequest,
+  handleJsonRecordsRequest
+} from './api/json-records-core.js';
+import { getJsonRecordsRepository } from './api/json-records-repository.js';
+import { normalizeToolRoute } from './public/routes.js';
 
 export {
   buildGoogleTranslateUrl,
@@ -23,11 +33,18 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
-export function createAppServer() {
+export function createAppServer({
+  env = process.env,
+  jsonRecordsRepository
+} = {}) {
   return createServer(async (request, response) => {
     try {
       if (request.method === 'POST' && getPathname(request) === '/api/translate-filename') {
         await handleTranslateFilename(request, response);
+        return;
+      }
+
+      if (await handleJsonRecordsApi(request, response, { env, jsonRecordsRepository })) {
         return;
       }
 
@@ -72,6 +89,92 @@ async function handleTranslateFilename(request, response) {
   });
 }
 
+async function handleJsonRecordsApi(request, response, { env, jsonRecordsRepository }) {
+  const pathname = getPathname(request);
+  let apiResponse;
+
+  if (pathname === '/api/json-records') {
+    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleJsonRecordsRequest(apiRequest, { repository });
+  } else if (pathname.startsWith('/api/json-records/')) {
+    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleJsonRecordDetailRequest(apiRequest, {
+      id: decodeURIComponent(pathname.replace('/api/json-records/', '')),
+      repository
+    });
+  } else if (pathname === '/api/admin/json-records/status') {
+    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminStatusRequest(apiRequest, { env, repository });
+  } else if (pathname === '/api/admin/json-records/import') {
+    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminImportRequest(apiRequest, { env, repository });
+  } else if (pathname.startsWith('/api/admin/json-records/')) {
+    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminRecordDeleteRequest(apiRequest, {
+      env,
+      id: decodeURIComponent(pathname.replace('/api/admin/json-records/', '')),
+      repository
+    });
+  } else if (pathname.startsWith('/api/admin/json-batches/')) {
+    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminBatchDeleteRequest(apiRequest, {
+      env,
+      id: decodeURIComponent(pathname.replace('/api/admin/json-batches/', '')),
+      repository
+    });
+  } else {
+    return false;
+  }
+
+  await sendFetchResponse(response, apiResponse);
+  return true;
+}
+
+async function toFetchRequest(request) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(request.headers)) {
+    if (Array.isArray(value)) {
+      headers.set(key, value.join(', '));
+    } else if (value !== undefined) {
+      headers.set(key, value);
+    }
+  }
+
+  const method = request.method ?? 'GET';
+  const body = method === 'GET' || method === 'HEAD'
+    ? undefined
+    : await readRawBody(request);
+
+  return new Request(`http://localhost${request.url ?? '/'}`, {
+    body,
+    headers,
+    method
+  });
+}
+
+async function readRawBody(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
+async function sendFetchResponse(response, fetchResponse) {
+  const headers = {};
+  fetchResponse.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  response.writeHead(fetchResponse.status, headers);
+  response.end(await fetchResponse.text());
+}
+
 async function readJsonBody(request) {
   const chunks = [];
   for await (const chunk of request) {
@@ -88,7 +191,10 @@ async function readJsonBody(request) {
 
 async function serveStatic(request, response) {
   const pathname = getPathname(request);
-  const relativeUrl = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '').replace(/^public\//, '');
+  const route = normalizeToolRoute(pathname);
+  const relativeUrl = pathname === '/' || route.tool !== 'hub'
+    ? 'index.html'
+    : pathname.replace(/^\/+/, '').replace(/^public\//, '');
   const filePath = path.normalize(path.join(publicDir, relativeUrl));
   const relativePath = path.relative(publicDir, filePath);
 

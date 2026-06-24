@@ -7,36 +7,51 @@ describe('upload-first UI structure', () => {
     const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
     const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
     const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+    const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
     const hubIndex = html.indexOf('id="toolHub"');
     const formatterIndex = html.indexOf('id="formatterApp"');
     const explorerIndex = html.indexOf('id="explorerApp"');
     const mappingIndex = html.indexOf('id="mappingApp"');
     const stringResourceIndex = html.indexOf('id="stringResourceApp"');
+    const adminIndex = html.indexOf('id="adminApp"');
+    const jsonEditorIndex = html.indexOf('id="jsonEditorApp"');
 
     assert.notEqual(hubIndex, -1);
     assert.notEqual(formatterIndex, -1);
     assert.notEqual(explorerIndex, -1);
     assert.notEqual(mappingIndex, -1);
     assert.notEqual(stringResourceIndex, -1);
+    assert.notEqual(adminIndex, -1);
+    assert.notEqual(jsonEditorIndex, -1);
     assert.ok(hubIndex < formatterIndex);
     assert.ok(hubIndex < mappingIndex);
     assert.ok(hubIndex < stringResourceIndex);
+    assert.ok(hubIndex < adminIndex);
+    assert.ok(hubIndex < jsonEditorIndex);
     assert.match(html, /id="formatterApp"[^>]*hidden/);
     assert.match(html, /id="explorerApp"[^>]*hidden/);
     assert.match(html, /id="mappingApp"[^>]*hidden/);
     assert.match(html, /id="stringResourceApp"[^>]*hidden/);
+    assert.match(html, /id="adminApp"[^>]*hidden/);
+    assert.match(html, /id="jsonEditorApp"[^>]*hidden/);
     assert.match(html, /id="openFormatterButton"/);
     assert.match(html, /id="openExplorerButton"/);
     assert.match(html, /id="openMappingButton"/);
     assert.match(html, /id="openStringResourceButton"/);
+    assert.match(html, /id="openAdminButton"/);
+    assert.match(html, /id="openJsonEditorButton"/);
     assert.match(html, /id="backToHubButton"/);
     assert.match(html, /id="backToHubFromExplorerButton"/);
     assert.match(html, /id="backToHubFromMappingButton"/);
     assert.match(html, /id="backToHubFromStringResourceButton"/);
+    assert.match(html, /id="backToHubFromAdminButton"/);
+    assert.match(html, /id="backToHubFromJsonEditorButton"/);
     assert.match(html, /JSON Formatter/);
     assert.match(html, /JSON Explorer/);
     assert.match(html, /Mapping Table Explorer/);
     assert.match(html, /String Resource Explorer/);
+    assert.match(html, /DB Admin/);
+    assert.match(html, /JSON Editor/);
     assert.match(html, /다국어 문자열 리소스 검색/);
     assert.match(html, /recognitionText 중심 탐색/);
     assert.doesNotMatch(html, /JSON to Excel/);
@@ -47,8 +62,43 @@ describe('upload-first UI structure', () => {
     assert.match(app, /showExplorerTool/);
     assert.match(app, /showMappingTool/);
     assert.match(app, /showStringResourceTool/);
+    assert.match(app, /showAdminTool/);
+    assert.match(app, /showJsonEditorTool/);
+    assert.match(app, /from '\.\/routes\.js'/);
+    assert.match(app, /navigateToTool\('formatter'\)/);
+    assert.match(app, /navigateToTool\('explorer'\)/);
+    assert.match(app, /navigateToTool\('mapping'\)/);
+    assert.match(app, /navigateToTool\('stringResource'\)/);
+    assert.match(app, /navigateToTool\('admin'\)/);
+    assert.match(app, /navigateToTool\('jsonEditor'\)/);
+    assert.match(app, /window\.addEventListener\('popstate',\s*renderToolRoute\)/);
+    assert.match(app, /history\.pushState\(/);
     assert.match(html, /src="\.\/vendor\/xlsx\.full\.min\.js"/);
     assert.doesNotMatch(app, /showExcelTool/);
+    const rewriteSources = new Set((vercel.rewrites ?? []).map((rewrite) => rewrite.source));
+    for (const source of ['/formatter', '/explorer', '/mapping-table', '/string-resource', '/admin', '/json-editor']) {
+      assert.ok(rewriteSources.has(source), `Expected Vercel rewrite for ${source}`);
+    }
+  });
+
+  it('declares local vanilla-jsoneditor vendor loading', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const packageJson = await readFile(new URL('../package.json', import.meta.url), 'utf8');
+    const pkg = JSON.parse(packageJson);
+
+    assert.equal(pkg.dependencies['vanilla-jsoneditor'], '^3.12.0');
+    assert.equal(
+      pkg.scripts['prepare:vendor'],
+      'node scripts/copy-xlsx-vendor.js && node scripts/copy-jsoneditor-vendor.js'
+    );
+    assert.match(html, /type="module" src="\.\/app\.js"/);
+  });
+
+  it('keeps route-inactive tool screens hidden despite layout display rules', async () => {
+    const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+    const hiddenRule = css.match(/(?:^|\n)\[hidden\]\s*{[^}]+}/)?.[0] ?? '';
+
+    assert.match(hiddenRule, /display:\s*none\s*!important/);
   });
 
   it('provides a String Resource Explorer upload and search workspace', async () => {
@@ -209,6 +259,112 @@ describe('upload-first UI structure', () => {
     assert.doesNotMatch(app, /stringResourceSheetId\(row\.fileName, row\.sheetName\)/);
   });
 
+  it('provides a protected JSON DB admin workspace', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+    const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
+
+    for (const id of [
+      'adminApp',
+      'adminSummary',
+      'adminKeyInput',
+      'adminStatus',
+      'adminHelpButton',
+      'adminLanguageInput',
+      'adminLanguageOptions',
+      'adminAddLanguageButton',
+      'adminRefreshButton',
+      'adminBatchNameInput',
+      'adminDescriptionInput',
+      'adminJsonFileInput',
+      'adminImportButton',
+      'adminImportStatus',
+      'adminRecordCount',
+      'adminBatchCount',
+      'adminSelectedFileCount',
+      'adminRecordSearchInput',
+      'adminRecordsTableBody',
+      'adminRecentBatches'
+    ]) {
+      assert.match(html, new RegExp(`id="${id}"`));
+    }
+
+    for (const selector of [
+      '.admin-workspace',
+      '.admin-panel',
+      '.admin-metric-grid',
+      '.admin-table-shell',
+      '.admin-table',
+      '.admin-batch-list',
+      '.admin-batch-row',
+      '.admin-language-row',
+      '.danger-action'
+    ]) {
+      assert.match(css, new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{`));
+    }
+
+    const recordsPanelRule = css.match(/\.admin-records-panel\s*{[^}]+}/)?.[0] ?? '';
+    const batchesPanelRule = css.match(/\.admin-batches-panel\s*{[^}]+}/)?.[0] ?? '';
+    const adminWorkspaceRule = css.match(/\.admin-workspace\s*{[^}]+}/)?.[0] ?? '';
+    const adminPanelRule = css.match(/\.admin-panel\s*{[^}]+}/)?.[0] ?? '';
+    const adminMetricGridRule = css.match(/\.admin-metric-grid\s*{[^}]+}/)?.[0] ?? '';
+    const adminUploadGridRule = css.match(/\.admin-upload-grid\s*{[^}]+}/)?.[0] ?? '';
+    const adminUploadStripRule = css.match(/\.admin-upload-panel \.upload-strip\s*{[^}]+}/)?.[0] ?? '';
+    const adminRecordsHeaderRule = css.match(/\.admin-records-panel \.panel-header\s*{[^}]+}/)?.[0] ?? '';
+    assert.match(recordsPanelRule, /grid-row:\s*3/);
+    assert.match(batchesPanelRule, /grid-row:\s*3/);
+    assert.match(adminWorkspaceRule, /gap:\s*14px/);
+    assert.match(adminPanelRule, /padding:\s*16px/);
+    assert.match(adminMetricGridRule, /gap:\s*12px/);
+    assert.match(adminUploadGridRule, /gap:\s*12px/);
+    assert.match(adminUploadStripRule, /margin-top:\s*14px/);
+    assert.match(adminUploadStripRule, /margin-bottom:\s*10px/);
+    assert.match(adminRecordsHeaderRule, /margin-bottom:\s*14px/);
+
+    for (const contract of [
+      'refreshAdminDashboard',
+      'importAdminJsonFiles',
+      'loadAdminStatus',
+      'loadAdminRecords',
+      'deleteAdminRecord',
+      'deleteAdminBatch',
+      'renderAdminDashboard',
+      'renderAdminLanguageOptions',
+      'registerAdminLanguageOption',
+      'adminLanguage',
+      'renderAdminRecords',
+      'renderAdminBatches',
+      'adminHeaders'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
+
+    assert.match(app, /fetch\('\/api\/admin\/json-records\/status'/);
+    assert.match(app, /fetch\('\/api\/admin\/json-records\/import'/);
+    assert.match(app, /language:\s*adminLanguage\(\)/);
+    assert.match(app, /ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY/);
+    assert.match(app, /DEFAULT_ADMIN_LANGUAGE_OPTIONS/);
+    assert.match(app, /en_AU/);
+    assert.match(app, /localStorage\.setItem\(ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY/);
+    assert.match(app, /fetch\(`\/api\/admin\/json-records\/\$\{encodeURIComponent\(id\)\}`/);
+    assert.match(app, /fetch\(`\/api\/admin\/json-batches\/\$\{encodeURIComponent\(id\)\}`/);
+    assert.match(app, /'x-admin-key': adminKey\(\)/);
+    assert.match(html, /id="adminHelpButton"[\s\S]*aria-controls="helpOverlay"/);
+    assert.match(app, /adminHelpSteps/);
+    assert.match(app, /openHelp\(adminHelpSteps,\s*elements\.adminHelpButton\)/);
+    assert.match(app, /activeHelpStep === activeHelpSteps\.length - 1/);
+    assert.doesNotMatch(app, /activeHelpStep === helpSteps\.length - 1/);
+    assert.match(app, /Admin key/);
+    assert.doesNotMatch(app, /기본 관리자 비밀번호/);
+    assert.doesNotMatch(app, /1313을 입력/);
+    assert.match(app, /DB에 업로드/);
+    assert.match(app, /최근 JSON/);
+    assert.match(app, /최근 배치/);
+    assert.doesNotMatch(app, /DATABASE_URL/);
+    assert.ok((vercel.rewrites ?? []).some((rewrite) => rewrite.source === '/admin'));
+  });
+
   it('declares local SheetJS vendor loading for Excel parsing', async () => {
     const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
     const packageJson = await readFile(new URL('../package.json', import.meta.url), 'utf8');
@@ -216,7 +372,7 @@ describe('upload-first UI structure', () => {
 
     assert.match(html, /<script src="\.\/vendor\/xlsx\.full\.min\.js" defer><\/script>/);
     assert.equal(pkg.dependencies.xlsx, '0.18.5');
-    assert.equal(pkg.scripts['prepare:vendor'], 'node scripts/copy-xlsx-vendor.js');
+    assert.match(pkg.scripts['prepare:vendor'], /node scripts\/copy-xlsx-vendor\.js/);
   });
 
   it('provides a direct GROUP INTENTIONS to SLOT REFERENCE workflow', async () => {

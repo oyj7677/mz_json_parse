@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MZ Tools</title>
+    <base href="/">
     <link rel="stylesheet" href="./styles.css">
     <script src="./vendor/xlsx.full.min.js" defer></script>
     <script type="module" src="./app.js"></script>
@@ -44,6 +45,20 @@
           <strong>String Resource Explorer</strong>
           <span>다국어 문자열 리소스 검색</span>
           <em>사용하기</em>
+        </button>
+
+        <button class="tool-card" id="openJsonEditorButton" type="button">
+          <span class="tool-card-kicker">Editor</span>
+          <strong>JSON Editor</strong>
+          <span>두 JSON 비교 / 구조 편집</span>
+          <em>사용하기</em>
+        </button>
+
+        <button class="tool-card" id="openAdminButton" type="button">
+          <span class="tool-card-kicker">Admin</span>
+          <strong>DB Admin</strong>
+          <span>JSON DB 업로드, 상태 확인, 삭제 관리</span>
+          <em>관리하기</em>
         </button>
       </section>
     </main>
@@ -518,6 +533,205 @@
           <span id="stringResourceUploadOverlayDetail">0/0</span>
         </section>
       </div>
+    </main>
+
+    <main class="app-shell tool-view" id="jsonEditorApp" hidden>
+      <header class="topbar">
+        <div>
+          <h1>JSON Editor</h1>
+          <p class="summary" id="jsonEditorSummary">좌우 JSON을 열어 비교하세요.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="backToHubFromJsonEditorButton" type="button">
+            도구 목록
+          </button>
+        </div>
+      </header>
+
+      <section class="json-editor-workspace" aria-label="JSON Editor workspace">
+        <section class="json-editor-pane-grid">
+          <article class="json-editor-pane">
+            <div class="panel-header">
+              <div>
+                <h2>Left JSON</h2>
+                <p id="jsonEditorLeftStatus">파일을 열거나 JSON을 붙여넣으세요.</p>
+              </div>
+              <div class="json-editor-pane-actions">
+                <label class="file-picker" for="jsonEditorLeftFileInput">파일 선택</label>
+                <input id="jsonEditorLeftFileInput" type="file" accept=".json,application/json">
+                <button class="ghost-button" id="jsonEditorLeftCopyButton" type="button">Copy</button>
+                <button class="ghost-button" id="jsonEditorLeftDownloadButton" type="button">Download</button>
+              </div>
+            </div>
+            <div class="json-editor-mount" id="jsonEditorLeftMount"></div>
+          </article>
+
+          <div class="json-editor-control-rail" aria-label="JSON Editor actions">
+            <button class="ghost-button" id="jsonEditorCopyRightButton" type="button" title="Left to Right">→</button>
+            <button class="ghost-button" id="jsonEditorCopyLeftButton" type="button" title="Right to Left">←</button>
+            <button class="ghost-button" id="jsonEditorSwapButton" type="button">Swap</button>
+            <button class="primary-action" id="jsonEditorCompareButton" type="button">Compare</button>
+          </div>
+
+          <article class="json-editor-pane">
+            <div class="panel-header">
+              <div>
+                <h2>Right JSON</h2>
+                <p id="jsonEditorRightStatus">파일을 열거나 JSON을 붙여넣으세요.</p>
+              </div>
+              <div class="json-editor-pane-actions">
+                <label class="file-picker" for="jsonEditorRightFileInput">파일 선택</label>
+                <input id="jsonEditorRightFileInput" type="file" accept=".json,application/json">
+                <button class="ghost-button" id="jsonEditorRightCopyButton" type="button">Copy</button>
+                <button class="ghost-button" id="jsonEditorRightDownloadButton" type="button">Download</button>
+              </div>
+            </div>
+            <div class="json-editor-mount" id="jsonEditorRightMount"></div>
+          </article>
+        </section>
+
+        <section class="json-editor-diff-panel" id="jsonEditorDiffPanel" aria-live="polite" hidden>
+          <div class="panel-header">
+            <div>
+              <h2>Compare Result</h2>
+              <p id="jsonEditorDiffSummary">비교 결과가 없습니다.</p>
+            </div>
+          </div>
+          <div class="json-editor-diff-table" id="jsonEditorDiffBody"></div>
+        </section>
+      </section>
+    </main>
+
+    <main class="app-shell tool-view" id="adminApp" hidden>
+      <header class="topbar">
+        <div>
+          <h1>DB Admin</h1>
+          <p class="summary" id="adminSummary">JSON DB 상태를 불러오지 않았습니다.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="backToHubFromAdminButton" type="button">
+            도구 목록
+          </button>
+          <button
+            class="ghost-button"
+            id="adminHelpButton"
+            type="button"
+            aria-expanded="false"
+            aria-controls="helpOverlay"
+          >
+            How to
+          </button>
+          <button class="primary-action" id="adminRefreshButton" type="button">
+            새로고침
+          </button>
+        </div>
+      </header>
+
+      <section class="admin-workspace" aria-label="JSON DB Admin workspace">
+        <section class="admin-panel admin-auth-panel">
+          <div class="panel-header">
+            <div>
+              <h2>관리자 접근</h2>
+              <p class="panel-copy">서버에 설정한 JSON_ADMIN_KEY를 입력합니다.</p>
+            </div>
+          </div>
+          <label class="admin-field" for="adminKeyInput">
+            <span>Admin key</span>
+            <input id="adminKeyInput" type="password" autocomplete="off" placeholder="JSON_ADMIN_KEY">
+          </label>
+          <p class="inline-status" id="adminStatus" aria-live="polite">관리자 키를 입력한 뒤 새로고침하세요.</p>
+        </section>
+
+        <section class="admin-panel admin-upload-panel">
+          <div class="panel-header">
+            <div>
+              <h2>JSON 업로드</h2>
+              <p class="panel-copy">선택한 JSON 파일을 Neon Postgres에 저장합니다.</p>
+            </div>
+          </div>
+          <div class="admin-upload-grid">
+            <div class="admin-field">
+              <label for="adminLanguageInput">Language</label>
+              <div class="admin-language-row">
+                <input id="adminLanguageInput" type="text" list="adminLanguageOptions" placeholder="en_AU">
+                <button class="ghost-button" id="adminAddLanguageButton" type="button">등록</button>
+              </div>
+              <datalist id="adminLanguageOptions"></datalist>
+            </div>
+            <label class="admin-field" for="adminBatchNameInput">
+              <span>Batch name</span>
+              <input id="adminBatchNameInput" type="text" placeholder="JSON upload">
+            </label>
+            <label class="admin-field" for="adminDescriptionInput">
+              <span>Description</span>
+              <input id="adminDescriptionInput" type="text" placeholder="선택 메모">
+            </label>
+          </div>
+          <div class="upload-strip">
+            <label class="file-picker" for="adminJsonFileInput">JSON 파일 선택</label>
+            <input id="adminJsonFileInput" type="file" accept=".json,application/json" multiple>
+            <span id="adminImportStatus" aria-live="polite">선택된 파일이 없습니다.</span>
+          </div>
+          <button class="primary-action" id="adminImportButton" type="button" disabled>
+            DB에 업로드
+          </button>
+        </section>
+
+        <section class="admin-metric-grid" aria-label="JSON DB status summary">
+          <article class="admin-metric">
+            <span>Records</span>
+            <strong id="adminRecordCount">0</strong>
+          </article>
+          <article class="admin-metric">
+            <span>Batches</span>
+            <strong id="adminBatchCount">0</strong>
+          </article>
+          <article class="admin-metric">
+            <span>Selected files</span>
+            <strong id="adminSelectedFileCount">0</strong>
+          </article>
+        </section>
+
+        <section class="admin-panel admin-records-panel">
+          <div class="panel-header">
+            <div>
+              <h2>최근 JSON</h2>
+              <p class="panel-copy">삭제는 검색 대상에서 제외되는 soft delete로 처리합니다.</p>
+            </div>
+            <label class="admin-search-field" for="adminRecordSearchInput">
+              <span>Search</span>
+              <input id="adminRecordSearchInput" type="search" autocomplete="off" placeholder="recognitionText 또는 파일명">
+            </label>
+          </div>
+          <div class="admin-table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th scope="col">File</th>
+                  <th scope="col">recognitionText</th>
+                  <th scope="col">language</th>
+                  <th scope="col">contentType</th>
+                  <th scope="col">table_version</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="adminRecordsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="admin-panel admin-batches-panel">
+          <div class="panel-header">
+            <div>
+              <h2>최근 배치</h2>
+              <p class="panel-copy">배치 삭제는 해당 업로드 묶음의 활성 JSON을 함께 제외합니다.</p>
+            </div>
+          </div>
+          <div class="admin-batch-list" id="adminRecentBatches">
+            <div class="empty-state compact-empty">불러온 배치가 없습니다.</div>
+          </div>
+        </aside>
+      </section>
     </main>
     <div class="help-overlay" id="helpOverlay" hidden>
       <button class="help-backdrop" type="button" data-help-close aria-label="도움말 닫기"></button>

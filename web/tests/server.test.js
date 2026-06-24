@@ -7,6 +7,7 @@ import {
   extractGoogleTranslateText,
   translateFilenameText
 } from '../api/translate-filename.js';
+import { createAppServer } from '../server.js';
 
 describe('translation server helpers', () => {
   it('builds a keyless Google Translate URL for English filename translation', () => {
@@ -83,6 +84,93 @@ describe('translation server helpers', () => {
       assert.equal(body.translatedText, 'Hello World');
     } finally {
       globalThis.fetch = originalFetch;
+    }
+  });
+
+
+  it('serves the app shell for tool-specific local paths', async () => {
+    const server = createAppServer();
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    try {
+      const { port } = server.address();
+      const response = await fetch(`http://127.0.0.1:${port}/explorer`);
+      const body = await response.text();
+
+      assert.equal(response.status, 200);
+      assert.match(body, /id="explorerApp"/);
+      assert.match(body, /id="toolHub"/);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('serves local JSON records API routes with injected repository dependencies', async () => {
+    const repository = {
+      async importRecords(payload) {
+        assert.equal(payload.records.length, 1);
+        return {
+          batch: { id: 'batch-1', recordCount: 1 },
+          insertedCount: 1,
+          skippedCount: 0
+        };
+      },
+      async searchRecords({ query }) {
+        assert.equal(query, 'weather');
+        return {
+          records: [{
+            id: 'record-1',
+            source_filename: 'weather.json',
+            recognition_text: 'Weather'
+          }],
+          total: 1
+        };
+      }
+    };
+    const server = createAppServer({
+      env: { JSON_ADMIN_KEY: 'secret' },
+      jsonRecordsRepository: repository
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    try {
+      const { port } = server.address();
+      const searchResponse = await fetch(`http://127.0.0.1:${port}/api/json-records?q=weather`);
+      const searchBody = await searchResponse.json();
+
+      const importResponse = await fetch(`http://127.0.0.1:${port}/api/admin/json-records/import`, {
+        body: JSON.stringify({
+          files: [{ filename: 'weather.json', text: '{"recognitionText":"Weather"}' }]
+        }),
+        headers: { 'x-admin-key': 'secret' },
+        method: 'POST'
+      });
+      const importBody = await importResponse.json();
+
+      assert.equal(searchResponse.status, 200);
+      assert.equal(searchBody.records[0].recognitionText, 'Weather');
+      assert.equal(importResponse.status, 200);
+      assert.equal(importBody.insertedCount, 1);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
     }
   });
 

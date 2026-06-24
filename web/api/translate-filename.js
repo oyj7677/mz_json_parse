@@ -1,3 +1,5 @@
+import { createNodeCompatibleHandler } from './vercel-node-adapter.js';
+
 const GOOGLE_TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single';
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8'
@@ -92,15 +94,13 @@ export function GET() {
   return methodNotAllowedResponse();
 }
 
-export default {
-  async fetch(request) {
-    if (request.method === 'POST') {
-      return POST(request);
-    }
-
-    return methodNotAllowedResponse();
+export default createNodeCompatibleHandler(async (request) => {
+  if (request.method === 'POST') {
+    return POST(request);
   }
-};
+
+  return methodNotAllowedResponse();
+});
 
 async function readRequestJson(request) {
   try {

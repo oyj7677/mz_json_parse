@@ -30,9 +30,22 @@ import {
   toggleStringResourceVisibleQualifier
 } from './string-resource-core.js';
 import { parseStringResourceWorkbookFile } from './string-resource-xlsx.js';
+import { initializeJsonEditorTool } from './json-editor-tool.js';
+import { normalizeToolRoute, pathForTool } from './routes.js';
 
 const EXPLORER_COLUMN_STORAGE_KEY = 'mz-json-explorer-column-widths';
+const ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY = 'mz-json-admin-language-options';
 const STRING_RESOURCE_RESULT_RENDER_LIMIT = 500;
+const DEFAULT_ADMIN_LANGUAGE_OPTIONS = [
+  'ko_KR',
+  'en_US',
+  'en_GB',
+  'en_AU',
+  'es_MX',
+  'es_ES',
+  'fr_FR',
+  'ar_AE'
+];
 const EXPLORER_TABLE_COLUMNS = [
   { id: 'sourceFilename', defaultWidth: 180, minWidth: 120, maxWidth: 520 },
   { id: 'recognitionText', defaultWidth: 340, minWidth: 180, maxWidth: 760 },
@@ -78,6 +91,15 @@ const state = {
     selectedSheetIds: new Set(),
     visibleQualifiers: [...STRING_RESOURCE_DEFAULT_QUALIFIERS]
   },
+  admin: {
+    isLoading: false,
+    languageOptions: loadAdminLanguageOptions(),
+    records: [],
+    query: '',
+    recentBatches: [],
+    selectedFiles: [],
+    status: null
+  },
   nextId: 1,
   translateFilenames: true
 };
@@ -115,9 +137,59 @@ const helpSteps = [
   }
 ];
 
+const adminHelpSteps = [
+  {
+    body: '관리자에게 공유된 Admin key를 입력합니다. 이 키는 업로드와 삭제 같은 관리자 작업에 사용됩니다.',
+    selector: '.admin-auth-panel',
+    title: 'Admin key'
+  },
+  {
+    body: '입력한 Admin key로 DB 상태, 저장된 JSON 개수, 최근 업로드 배치를 다시 불러옵니다.',
+    selector: '#adminRefreshButton',
+    title: 'DB 상태 새로고침'
+  },
+  {
+    body: 'Language를 선택한 뒤 Batch name과 설명으로 업로드 묶음을 구분합니다. 선택한 language는 모든 JSON에 적용됩니다.',
+    selector: '.admin-upload-panel',
+    title: 'DB에 업로드'
+  },
+  {
+    body: '저장된 JSON은 recognitionText 또는 파일명으로 검색할 수 있고, 필요 없는 항목은 개별 삭제할 수 있습니다.',
+    selector: '.admin-records-panel',
+    title: '최근 JSON'
+  },
+  {
+    body: '업로드 묶음 단위로 기록을 확인합니다. 배치를 삭제하면 해당 업로드에 포함된 JSON들이 검색 대상에서 제외됩니다.',
+    selector: '.admin-batches-panel',
+    title: '최근 배치'
+  }
+];
+
 const elements = {
+  adminApp: document.querySelector('#adminApp'),
+  adminBatchCount: document.querySelector('#adminBatchCount'),
+  adminBatchNameInput: document.querySelector('#adminBatchNameInput'),
+  adminDescriptionInput: document.querySelector('#adminDescriptionInput'),
+  adminHelpButton: document.querySelector('#adminHelpButton'),
+  adminImportButton: document.querySelector('#adminImportButton'),
+  adminImportStatus: document.querySelector('#adminImportStatus'),
+  adminJsonFileInput: document.querySelector('#adminJsonFileInput'),
+  adminKeyInput: document.querySelector('#adminKeyInput'),
+  adminAddLanguageButton: document.querySelector('#adminAddLanguageButton'),
+  adminLanguageInput: document.querySelector('#adminLanguageInput'),
+  adminLanguageOptions: document.querySelector('#adminLanguageOptions'),
+  adminRecentBatches: document.querySelector('#adminRecentBatches'),
+  adminRecordCount: document.querySelector('#adminRecordCount'),
+  adminRecordSearchInput: document.querySelector('#adminRecordSearchInput'),
+  adminRecordsTableBody: document.querySelector('#adminRecordsTableBody'),
+  adminRefreshButton: document.querySelector('#adminRefreshButton'),
+  adminSelectedFileCount: document.querySelector('#adminSelectedFileCount'),
+  adminStatus: document.querySelector('#adminStatus'),
+  adminSummary: document.querySelector('#adminSummary'),
   backToHubButton: document.querySelector('#backToHubButton'),
+  backToHubFromAdminButton: document.querySelector('#backToHubFromAdminButton'),
   backToHubFromExplorerButton: document.querySelector('#backToHubFromExplorerButton'),
+  backToHubFromJsonEditorButton: document.querySelector('#backToHubFromJsonEditorButton'),
   backToHubFromMappingButton: document.querySelector('#backToHubFromMappingButton'),
   backToHubFromStringResourceButton: document.querySelector('#backToHubFromStringResourceButton'),
   clearInputButton: document.querySelector('#clearInputButton'),
@@ -163,6 +235,25 @@ const elements = {
   inputStatus: document.querySelector('#inputStatus'),
   itemList: document.querySelector('#itemList'),
   jsonFileInput: document.querySelector('#jsonFileInput'),
+  jsonEditorApp: document.querySelector('#jsonEditorApp'),
+  jsonEditorCompareButton: document.querySelector('#jsonEditorCompareButton'),
+  jsonEditorCopyLeftButton: document.querySelector('#jsonEditorCopyLeftButton'),
+  jsonEditorCopyRightButton: document.querySelector('#jsonEditorCopyRightButton'),
+  jsonEditorDiffBody: document.querySelector('#jsonEditorDiffBody'),
+  jsonEditorDiffPanel: document.querySelector('#jsonEditorDiffPanel'),
+  jsonEditorDiffSummary: document.querySelector('#jsonEditorDiffSummary'),
+  jsonEditorLeftCopyButton: document.querySelector('#jsonEditorLeftCopyButton'),
+  jsonEditorLeftDownloadButton: document.querySelector('#jsonEditorLeftDownloadButton'),
+  jsonEditorLeftFileInput: document.querySelector('#jsonEditorLeftFileInput'),
+  jsonEditorLeftMount: document.querySelector('#jsonEditorLeftMount'),
+  jsonEditorLeftStatus: document.querySelector('#jsonEditorLeftStatus'),
+  jsonEditorRightCopyButton: document.querySelector('#jsonEditorRightCopyButton'),
+  jsonEditorRightDownloadButton: document.querySelector('#jsonEditorRightDownloadButton'),
+  jsonEditorRightFileInput: document.querySelector('#jsonEditorRightFileInput'),
+  jsonEditorRightMount: document.querySelector('#jsonEditorRightMount'),
+  jsonEditorRightStatus: document.querySelector('#jsonEditorRightStatus'),
+  jsonEditorSummary: document.querySelector('#jsonEditorSummary'),
+  jsonEditorSwapButton: document.querySelector('#jsonEditorSwapButton'),
   mappingApp: document.querySelector('#mappingApp'),
   mappingCount: document.querySelector('#mappingCount'),
   mappingGroupEmptyState: document.querySelector('#mappingGroupEmptyState'),
@@ -206,7 +297,9 @@ const elements = {
   openExplorerButton: document.querySelector('#openExplorerButton'),
   openFormatterButton: document.querySelector('#openFormatterButton'),
   openHelpButton: document.querySelector('#openHelpButton'),
+  openJsonEditorButton: document.querySelector('#openJsonEditorButton'),
   openMappingButton: document.querySelector('#openMappingButton'),
+  openAdminButton: document.querySelector('#openAdminButton'),
   openStringResourceButton: document.querySelector('#openStringResourceButton'),
   pastePanel: document.querySelector('#pastePanel'),
   prevHelpButton: document.querySelector('#prevHelpButton'),
@@ -222,40 +315,90 @@ const elements = {
 };
 
 let activeHelpStep = 0;
+let activeHelpSteps = helpSteps;
+let helpControlButton = null;
 let helpFocusReturnTarget = null;
 let explorerModalFocusReturnTarget = null;
 let explorerDrawerFocusReturnTarget = null;
 let stringResourceDetailFocusReturnTarget = null;
 let explorerColumnWidths = loadExplorerColumnWidths();
+let jsonEditorToolState = null;
 
 elements.openFormatterButton.addEventListener('click', () => {
-  showFormatterTool();
+  navigateToTool('formatter');
 });
 
 elements.openExplorerButton.addEventListener('click', () => {
-  showExplorerTool();
+  navigateToTool('explorer');
 });
 
 elements.openMappingButton.addEventListener('click', () => {
-  showMappingTool();
+  navigateToTool('mapping');
 });
 
-elements.openStringResourceButton.addEventListener('click', showStringResourceTool);
+elements.openStringResourceButton.addEventListener('click', () => {
+  navigateToTool('stringResource');
+});
+
+elements.openJsonEditorButton.addEventListener('click', () => {
+  navigateToTool('jsonEditor');
+});
+
+elements.openAdminButton.addEventListener('click', () => {
+  navigateToTool('admin');
+});
 
 elements.backToHubButton.addEventListener('click', () => {
-  showToolHub();
+  navigateToTool('hub');
+});
+
+elements.backToHubFromAdminButton.addEventListener('click', () => {
+  navigateToTool('hub');
 });
 
 elements.backToHubFromExplorerButton.addEventListener('click', () => {
-  showToolHub();
+  navigateToTool('hub');
+});
+
+elements.backToHubFromJsonEditorButton.addEventListener('click', () => {
+  navigateToTool('hub');
 });
 
 elements.backToHubFromMappingButton.addEventListener('click', () => {
-  showToolHub();
+  navigateToTool('hub');
 });
 
-elements.backToHubFromStringResourceButton.addEventListener('click', showToolHub);
+elements.backToHubFromStringResourceButton.addEventListener('click', () => {
+  navigateToTool('hub');
+});
 
+elements.adminJsonFileInput.addEventListener('change', () => {
+  state.admin.selectedFiles = Array.from(elements.adminJsonFileInput.files ?? []);
+  renderAdminUploadState();
+});
+
+elements.adminRefreshButton.addEventListener('click', () => {
+  void refreshAdminDashboard();
+});
+
+elements.adminImportButton.addEventListener('click', () => {
+  void importAdminJsonFiles();
+});
+
+elements.adminLanguageInput.addEventListener('input', () => {
+  renderAdminUploadState();
+});
+
+elements.adminAddLanguageButton.addEventListener('click', () => {
+  registerAdminLanguageOption();
+});
+
+elements.adminRecordSearchInput.addEventListener('input', (event) => {
+  state.admin.query = event.target.value;
+  void loadAdminRecords().catch((error) => {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  });
+});
 
 elements.stringResourceSearchInput.addEventListener('input', (event) => {
   state.stringResource.query = event.target.value;
@@ -402,7 +545,11 @@ elements.jsonFileInput.addEventListener('change', async () => {
 });
 
 elements.openHelpButton.addEventListener('click', () => {
-  openHelp();
+  openHelp(helpSteps, elements.openHelpButton);
+});
+
+elements.adminHelpButton.addEventListener('click', () => {
+  openHelp(adminHelpSteps, elements.adminHelpButton);
 });
 
 elements.closeHelpButton.addEventListener('click', () => {
@@ -414,7 +561,7 @@ elements.prevHelpButton.addEventListener('click', () => {
 });
 
 elements.nextHelpButton.addEventListener('click', () => {
-  if (activeHelpStep === helpSteps.length - 1) {
+  if (activeHelpStep === activeHelpSteps.length - 1) {
     closeHelp();
     return;
   }
@@ -469,6 +616,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 document.addEventListener('pointerdown', handleExplorerOutsidePointerDown);
+window.addEventListener('popstate', renderToolRoute);
 
 window.addEventListener('resize', () => {
   if (!elements.helpOverlay.hidden) {
@@ -488,6 +636,63 @@ render();
 renderExplorer();
 renderMappingWorkflow();
 renderStringResource();
+renderAdminLanguageOptions();
+renderAdminDashboard();
+renderToolRoute();
+
+function navigateToTool(tool) {
+  const nextPath = pathForTool(tool);
+
+  if (window.location.pathname !== nextPath) {
+    history.pushState({ tool }, '', nextPath);
+  }
+
+  renderToolRoute();
+}
+
+function renderToolRoute() {
+  const route = normalizeToolRoute(window.location.pathname);
+
+  if (window.location.pathname !== route.path) {
+    history.replaceState({ tool: route.tool }, '', route.path);
+  }
+
+  showToolView(route.tool);
+}
+
+function showToolView(tool) {
+  if (tool === 'formatter') {
+    showFormatterTool();
+    return;
+  }
+
+  if (tool === 'explorer') {
+    showExplorerTool();
+    return;
+  }
+
+  if (tool === 'mapping') {
+    showMappingTool();
+    return;
+  }
+
+  if (tool === 'stringResource') {
+    showStringResourceTool();
+    return;
+  }
+
+  if (tool === 'jsonEditor') {
+    showJsonEditorTool();
+    return;
+  }
+
+  if (tool === 'admin') {
+    showAdminTool();
+    return;
+  }
+
+  showToolHub();
+}
 
 function showToolHub() {
   if (!elements.helpOverlay.hidden) {
@@ -499,7 +704,9 @@ function showToolHub() {
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = true;
   elements.stringResourceApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'mapping-active');
+  elements.jsonEditorApp.hidden = true;
+  elements.adminApp.hidden = true;
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.openFormatterButton.focus();
 }
 
@@ -509,7 +716,9 @@ function showFormatterTool() {
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = true;
   elements.stringResourceApp.hidden = true;
-  document.body.classList.remove('mapping-active');
+  elements.jsonEditorApp.hidden = true;
+  elements.adminApp.hidden = true;
+  document.body.classList.remove('mapping-active', 'json-editor-active');
   document.body.classList.add('formatter-active');
   elements.backToHubButton.focus();
 }
@@ -524,7 +733,9 @@ function showExplorerTool() {
   elements.explorerApp.hidden = false;
   elements.mappingApp.hidden = true;
   elements.stringResourceApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'mapping-active');
+  elements.jsonEditorApp.hidden = true;
+  elements.adminApp.hidden = true;
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.backToHubFromExplorerButton.focus();
 }
 
@@ -538,7 +749,9 @@ function showMappingTool() {
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = false;
   elements.stringResourceApp.hidden = true;
-  document.body.classList.remove('formatter-active');
+  elements.jsonEditorApp.hidden = true;
+  elements.adminApp.hidden = true;
+  document.body.classList.remove('formatter-active', 'json-editor-active');
   document.body.classList.add('mapping-active');
   elements.mappingGroupSearchInput.focus();
   void loadMappingData();
@@ -554,9 +767,421 @@ function showStringResourceTool() {
   elements.explorerApp.hidden = true;
   elements.mappingApp.hidden = true;
   elements.stringResourceApp.hidden = false;
-  document.body.classList.remove('formatter-active', 'mapping-active');
+  elements.jsonEditorApp.hidden = true;
+  elements.adminApp.hidden = true;
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.stringResourceSearchInput.focus();
   renderStringResource();
+}
+
+function showJsonEditorTool() {
+  if (!elements.helpOverlay.hidden) {
+    closeHelp();
+  }
+
+  elements.toolHub.hidden = true;
+  elements.formatterApp.hidden = true;
+  elements.explorerApp.hidden = true;
+  elements.mappingApp.hidden = true;
+  elements.stringResourceApp.hidden = true;
+  elements.jsonEditorApp.hidden = false;
+  elements.adminApp.hidden = true;
+  document.body.classList.remove('formatter-active', 'mapping-active');
+  document.body.classList.add('json-editor-active');
+
+  if (!jsonEditorToolState) {
+    jsonEditorToolState = initializeJsonEditorTool(elements);
+  }
+
+  elements.backToHubFromJsonEditorButton.focus();
+}
+
+function showAdminTool() {
+  if (!elements.helpOverlay.hidden) {
+    closeHelp();
+  }
+
+  elements.toolHub.hidden = true;
+  elements.formatterApp.hidden = true;
+  elements.explorerApp.hidden = true;
+  elements.mappingApp.hidden = true;
+  elements.stringResourceApp.hidden = true;
+  elements.jsonEditorApp.hidden = true;
+  elements.adminApp.hidden = false;
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
+  elements.adminKeyInput.focus();
+  renderAdminDashboard();
+}
+
+async function refreshAdminDashboard() {
+  if (!adminKey()) {
+    setAdminStatus('관리자 키를 입력하세요.');
+    renderAdminDashboard();
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+
+  try {
+    await loadAdminStatus();
+    await loadAdminRecords();
+    setAdminStatus('DB 상태를 불러왔습니다.');
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function importAdminJsonFiles() {
+  if (!adminKey()) {
+    setAdminImportStatus('관리자 키를 입력하세요.');
+    return;
+  }
+  if (!adminLanguage()) {
+    setAdminImportStatus('Language 값을 선택하거나 입력하세요.');
+    return;
+  }
+  if (state.admin.selectedFiles.length === 0) {
+    setAdminImportStatus('업로드할 JSON 파일을 선택하세요.');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+  setAdminImportStatus(`파일 ${state.admin.selectedFiles.length}개를 읽는 중입니다.`);
+
+  try {
+    const files = [];
+    for (const file of state.admin.selectedFiles) {
+      files.push({
+        filename: file.name,
+        text: await file.text()
+      });
+    }
+
+    const response = await fetch('/api/admin/json-records/import', {
+      body: JSON.stringify({
+        batchName: elements.adminBatchNameInput.value,
+        description: elements.adminDescriptionInput.value,
+        language: adminLanguage(),
+        files
+      }),
+      headers: adminHeaders({ json: true }),
+      method: 'POST'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `업로드 실패 (${response.status})`);
+    }
+
+    setAdminImportStatus(`업로드 완료: 저장 ${body.insertedCount ?? 0}개, 중복 ${body.skippedCount ?? 0}개`);
+    rememberAdminLanguageOption(adminLanguage());
+    elements.adminJsonFileInput.value = '';
+    state.admin.selectedFiles = [];
+    await refreshAdminDashboard();
+  } catch (error) {
+    setAdminImportStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function loadAdminStatus() {
+  const response = await fetch('/api/admin/json-records/status', {
+    headers: adminHeaders(),
+    method: 'GET'
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body.error ?? `상태 조회 실패 (${response.status})`);
+  }
+
+  state.admin.status = body.status ?? null;
+  state.admin.recentBatches = state.admin.status?.recentBatches ?? [];
+}
+
+async function loadAdminRecords() {
+  const url = new URL('/api/json-records', window.location.origin);
+  url.searchParams.set('limit', '100');
+  if (state.admin.query.trim()) {
+    url.searchParams.set('q', state.admin.query.trim());
+  }
+
+  const response = await fetch(url.href);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body.error ?? `JSON 목록 조회 실패 (${response.status})`);
+  }
+
+  state.admin.records = body.records ?? [];
+  renderAdminDashboard();
+}
+
+async function deleteAdminRecord(id) {
+  if (!adminKey()) {
+    setAdminStatus('관리자 키를 입력하세요.');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+
+  try {
+    const response = await fetch(`/api/admin/json-records/${encodeURIComponent(id)}`, {
+      headers: adminHeaders(),
+      method: 'DELETE'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `삭제 실패 (${response.status})`);
+    }
+
+    setAdminStatus(`삭제 완료: ${body.deletedCount ?? 0}개`);
+    await refreshAdminDashboard();
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function deleteAdminBatch(id) {
+  if (!adminKey()) {
+    setAdminStatus('관리자 키를 입력하세요.');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+
+  try {
+    const response = await fetch(`/api/admin/json-batches/${encodeURIComponent(id)}`, {
+      headers: adminHeaders(),
+      method: 'DELETE'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `배치 삭제 실패 (${response.status})`);
+    }
+
+    setAdminStatus(`배치 삭제 완료: ${body.deletedCount ?? 0}개`);
+    await refreshAdminDashboard();
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+function renderAdminDashboard() {
+  const status = state.admin.status ?? {};
+  const recordCount = Number(status.recordCount ?? 0);
+  const batchCount = Number(status.batchCount ?? 0);
+
+  elements.adminSummary.textContent = state.admin.isLoading
+    ? 'JSON DB 작업을 처리하는 중입니다.'
+    : `Records ${recordCount.toLocaleString()}개, batches ${batchCount.toLocaleString()}개`;
+  elements.adminRecordCount.textContent = recordCount.toLocaleString();
+  elements.adminBatchCount.textContent = batchCount.toLocaleString();
+  elements.adminRefreshButton.disabled = state.admin.isLoading;
+  renderAdminUploadState();
+  renderAdminRecords();
+  renderAdminBatches();
+}
+
+function renderAdminUploadState() {
+  const fileCount = state.admin.selectedFiles.length;
+  elements.adminSelectedFileCount.textContent = fileCount.toLocaleString();
+  elements.adminImportButton.disabled = state.admin.isLoading || fileCount === 0 || !adminLanguage();
+  if (fileCount > 0) {
+    elements.adminImportStatus.textContent = `선택된 파일 ${fileCount.toLocaleString()}개`;
+  }
+}
+
+function renderAdminRecords() {
+  const fragment = document.createDocumentFragment();
+
+  if (state.admin.records.length === 0) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 6;
+    cell.textContent = '표시할 JSON이 없습니다.';
+    row.append(cell);
+    fragment.append(row);
+  }
+
+  for (const record of state.admin.records) {
+    const row = document.createElement('tr');
+    appendAdminCell(row, record.sourceFilename || '-');
+    appendAdminCell(row, record.recognitionText || '-');
+    appendAdminCell(row, record.language || '-');
+    appendAdminCell(row, record.contentType || '-');
+    appendAdminCell(row, record.tableVersion || '-');
+
+    const actionCell = document.createElement('td');
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'ghost-button danger-action';
+    deleteButton.type = 'button';
+    deleteButton.textContent = '삭제';
+    deleteButton.disabled = state.admin.isLoading;
+    deleteButton.addEventListener('click', () => {
+      void deleteAdminRecord(record.id);
+    });
+    actionCell.append(deleteButton);
+    row.append(actionCell);
+    fragment.append(row);
+  }
+
+  elements.adminRecordsTableBody.replaceChildren(fragment);
+}
+
+function renderAdminBatches() {
+  const fragment = document.createDocumentFragment();
+
+  if (state.admin.recentBatches.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state compact-empty';
+    empty.textContent = '불러온 배치가 없습니다.';
+    fragment.append(empty);
+  }
+
+  for (const batch of state.admin.recentBatches) {
+    const row = document.createElement('article');
+    row.className = 'admin-batch-row';
+
+    const text = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = batch.name || '이름 없는 배치';
+    const meta = document.createElement('span');
+    meta.className = 'item-meta';
+    meta.textContent = `${Number(batch.recordCount ?? 0).toLocaleString()} records | ${formatAdminDate(batch.createdAt)}`;
+    text.append(title, meta);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'ghost-button danger-action';
+    deleteButton.type = 'button';
+    deleteButton.textContent = '배치 삭제';
+    deleteButton.disabled = state.admin.isLoading;
+    deleteButton.addEventListener('click', () => {
+      void deleteAdminBatch(batch.id);
+    });
+
+    row.append(text, deleteButton);
+    fragment.append(row);
+  }
+
+  elements.adminRecentBatches.replaceChildren(fragment);
+}
+
+function appendAdminCell(row, value) {
+  const cell = document.createElement('td');
+  cell.textContent = String(value ?? '').trim() || '-';
+  row.append(cell);
+}
+
+function renderAdminLanguageOptions() {
+  const fragment = document.createDocumentFragment();
+  for (const language of state.admin.languageOptions) {
+    const option = document.createElement('option');
+    option.value = language;
+    fragment.append(option);
+  }
+  elements.adminLanguageOptions.replaceChildren(fragment);
+}
+
+function registerAdminLanguageOption() {
+  const language = adminLanguage();
+  if (!language) {
+    setAdminImportStatus('Language 값을 입력하세요.');
+    return;
+  }
+  rememberAdminLanguageOption(language);
+  setAdminImportStatus(`${language} language 값을 등록했습니다.`);
+  renderAdminUploadState();
+}
+
+function rememberAdminLanguageOption(language) {
+  const normalized = normalizeAdminLanguage(language);
+  if (!normalized) {
+    return;
+  }
+  if (!state.admin.languageOptions.includes(normalized)) {
+    state.admin.languageOptions = [...state.admin.languageOptions, normalized].sort();
+    saveAdminLanguageOptions();
+    renderAdminLanguageOptions();
+  }
+  elements.adminLanguageInput.value = normalized;
+}
+
+function loadAdminLanguageOptions() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY) ?? '[]');
+    return uniqueAdminLanguageOptions([
+      ...DEFAULT_ADMIN_LANGUAGE_OPTIONS,
+      ...(Array.isArray(stored) ? stored : [])
+    ]);
+  } catch {
+    return [...DEFAULT_ADMIN_LANGUAGE_OPTIONS];
+  }
+}
+
+function saveAdminLanguageOptions() {
+  try {
+    localStorage.setItem(ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY, JSON.stringify(state.admin.languageOptions));
+  } catch {
+    // Ignore storage failures; the current upload can still use the typed language value.
+  }
+}
+
+function uniqueAdminLanguageOptions(values) {
+  return [...new Set(values.map(normalizeAdminLanguage).filter(Boolean))].sort();
+}
+
+function normalizeAdminLanguage(value) {
+  return String(value ?? '').trim().slice(0, 64);
+}
+
+function adminKey() {
+  return elements.adminKeyInput.value.trim();
+}
+
+function adminLanguage() {
+  return normalizeAdminLanguage(elements.adminLanguageInput.value);
+}
+
+function adminHeaders({ json = false } = {}) {
+  const headers = {
+    'x-admin-key': adminKey()
+  };
+  if (json) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return headers;
+}
+
+function setAdminStatus(message) {
+  elements.adminStatus.textContent = message;
+}
+
+function setAdminImportStatus(message) {
+  elements.adminImportStatus.textContent = message;
+}
+
+function formatAdminDate(value) {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+  return date.toLocaleString();
 }
 
 async function registerStringResourceFiles(fileList) {
@@ -1837,13 +2462,15 @@ function getModalFocusableElements(modalElement) {
     .filter((element) => element instanceof HTMLElement && !element.hidden);
 }
 
-function openHelp() {
+function openHelp(steps = helpSteps, controlButton = elements.openHelpButton) {
+  activeHelpSteps = steps;
+  helpControlButton = controlButton;
   helpFocusReturnTarget = document.activeElement instanceof HTMLElement
     ? document.activeElement
-    : elements.openHelpButton;
+    : controlButton;
   activeHelpStep = 0;
   elements.helpOverlay.hidden = false;
-  elements.openHelpButton.setAttribute('aria-expanded', 'true');
+  controlButton.setAttribute('aria-expanded', 'true');
   document.body.classList.add('help-open');
   showHelpStep(activeHelpStep);
   elements.helpCallout.focus();
@@ -1851,23 +2478,25 @@ function openHelp() {
 
 function closeHelp() {
   elements.helpOverlay.hidden = true;
-  elements.openHelpButton.setAttribute('aria-expanded', 'false');
+  helpControlButton?.setAttribute('aria-expanded', 'false');
   document.body.classList.remove('help-open');
   elements.helpSpotlight.removeAttribute('style');
   elements.helpCallout.removeAttribute('style');
   helpFocusReturnTarget?.focus();
+  activeHelpSteps = helpSteps;
+  helpControlButton = null;
   helpFocusReturnTarget = null;
 }
 
 function showHelpStep(index) {
-  activeHelpStep = Math.min(Math.max(index, 0), helpSteps.length - 1);
-  const step = helpSteps[activeHelpStep];
+  activeHelpStep = Math.min(Math.max(index, 0), activeHelpSteps.length - 1);
+  const step = activeHelpSteps[activeHelpStep];
 
   elements.helpStepTitle.textContent = step.title;
   elements.helpStepBody.textContent = step.body;
-  elements.helpStepCount.textContent = `${activeHelpStep + 1} / ${helpSteps.length}`;
+  elements.helpStepCount.textContent = `${activeHelpStep + 1} / ${activeHelpSteps.length}`;
   elements.prevHelpButton.disabled = activeHelpStep === 0;
-  elements.nextHelpButton.textContent = activeHelpStep === helpSteps.length - 1 ? '종료' : '다음';
+  elements.nextHelpButton.textContent = activeHelpStep === activeHelpSteps.length - 1 ? '종료' : '다음';
 
   const target = document.querySelector(step.selector);
   target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1877,7 +2506,7 @@ function showHelpStep(index) {
 }
 
 function positionHelpOverlay() {
-  const step = helpSteps[activeHelpStep];
+  const step = activeHelpSteps[activeHelpStep];
   const target = document.querySelector(step.selector);
 
   if (!target) {

@@ -8,12 +8,14 @@
     "dev:vercel": "npx vercel dev",
     "start": "node server.js",
     "test": "node --test",
-    "prepare:vendor": "node scripts/copy-xlsx-vendor.js"
+    "prepare:vendor": "node scripts/copy-xlsx-vendor.js && node scripts/copy-jsoneditor-vendor.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "vanilla-jsoneditor": "^3.12.0",
     "xlsx": "0.18.5"
   }
 }
