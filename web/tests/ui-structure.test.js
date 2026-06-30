@@ -794,6 +794,7 @@ describe('upload-first UI structure', () => {
       'loadExplorerDatasets',
       'loadExplorerCountries',
       'searchDbExplorerRecords',
+      'fetchExplorerRecordDetail',
       'loadMappingDatasetRows',
       'loadStringResourceDatasetRows'
     ]) {
@@ -806,6 +807,7 @@ describe('upload-first UI structure', () => {
       /\/api\/datasets\?tool=string_resource/,
       /\/api\/json-countries/,
       /\/api\/json-records/,
+      /\/api\/json-records\/\$\{encodeURIComponent\(recordId\)\}/,
       /\/api\/mapping-rows/,
       /\/api\/string-resource-rows/
     ]) {
@@ -836,6 +838,22 @@ describe('upload-first UI structure', () => {
     assert.ok(explorerFileHandler.indexOf('clearDbExplorerRows()') < explorerFileHandler.indexOf('registerExplorerFiles('));
     assert.ok(explorerFolderHandler.indexOf('clearDbExplorerRows()') < explorerFolderHandler.indexOf('registerExplorerFiles('));
     assert.ok(stringResourceFileHandler.indexOf('clearDbStringResourceRows()') < stringResourceFileHandler.indexOf('registerStringResourceFiles('));
+
+    assert.match(app, /sourceMode:\s*'local'/);
+    assert.match(app, /sourceMode = 'db'/);
+    assert.match(app, /hasLocalExplorerRows/);
+    assert.match(app, /hasLocalStringResourceRows/);
+    assert.match(app, /state\.explorer\.sourceMode === 'local'[\s\S]*loadExplorerDatasets/);
+    assert.match(app, /state\.stringResource\.sourceMode === 'local'[\s\S]*loadStringResourceDatasets/);
+    assert.match(app, /recordId:\s*record\.id/);
+    assert.match(app, /rawJson/);
+    assert.match(app, /rawText/);
+    assert.match(app, /explorerDbSearchRequestSeq/);
+    assert.match(app, /stringResourceDbRowsRequestSeq/);
+    assert.match(app, /requestToken !== explorerDbSearchRequestSeq/);
+    assert.match(app, /requestToken !== stringResourceDbRowsRequestSeq/);
+    assert.match(app, /loadExplorerDatasets[\s\S]*catch \(error\)[\s\S]*clearDbExplorerRows\(\)/);
+    assert.match(app, /loadStringResourceDatasets[\s\S]*catch \(error\)[\s\S]*clearDbStringResourceRows\(\)/);
   });
 
   it('hides explorer suggestions when the user leaves search assistance mode', async () => {

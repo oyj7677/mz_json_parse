@@ -83,7 +83,8 @@ const state = {
     nextId: 1,
     query: '',
     selectedCountry: '',
-    selectedDatasetId: ''
+    selectedDatasetId: '',
+    sourceMode: 'local'
   },
   items: [],
   mapping: {
@@ -95,7 +96,8 @@ const state = {
     rows: [],
     selectedGroupId: '',
     selectedSlots: [],
-    source: ''
+    source: '',
+    sourceMode: ''
   },
   stringResource: {
     datasets: [],
@@ -110,6 +112,7 @@ const state = {
     rows: [],
     selectedDatasetId: '',
     selectedSheetIds: new Set(),
+    sourceMode: 'local',
     visibleQualifiers: [...STRING_RESOURCE_DEFAULT_QUALIFIERS]
   },
   admin: {
@@ -377,6 +380,9 @@ let explorerDrawerFocusReturnTarget = null;
 let stringResourceDetailFocusReturnTarget = null;
 let explorerColumnWidths = loadExplorerColumnWidths();
 let jsonEditorToolState = null;
+let explorerDbSearchRequestSeq = 0;
+let explorerRecordDetailRequestSeq = 0;
+let stringResourceDbRowsRequestSeq = 0;
 
 elements.openFormatterButton.addEventListener('click', () => {
   navigateToTool('formatter');
@@ -509,14 +515,17 @@ elements.stringResourceSearchInput.addEventListener('input', (event) => {
 elements.stringResourceDatasetSelect.addEventListener('change', (event) => {
   state.stringResource.selectedDatasetId = event.target.value;
   if (!state.stringResource.selectedDatasetId) {
+    state.stringResource.sourceMode = 'local';
     clearDbStringResourceRows();
     renderStringResource();
     return;
   }
+  state.stringResource.sourceMode = 'db';
   void loadStringResourceDatasetRows(state.stringResource.selectedDatasetId, state.stringResource.query);
 });
 
 elements.stringResourceFileInput.addEventListener('change', async () => {
+  state.stringResource.sourceMode = 'local';
   state.stringResource.selectedDatasetId = '';
   elements.stringResourceDatasetSelect.value = '';
   clearDbStringResourceRows();
@@ -525,6 +534,8 @@ elements.stringResourceFileInput.addEventListener('change', async () => {
 });
 
 elements.clearStringResourceButton.addEventListener('click', () => {
+  state.stringResource.sourceMode = 'local';
+  state.stringResource.selectedDatasetId = '';
   state.stringResource.errors = [];
   state.stringResource.files = [];
   state.stringResource.hiddenQualifiers = new Set();
@@ -536,6 +547,7 @@ elements.clearStringResourceButton.addEventListener('click', () => {
   state.stringResource.selectedSheetIds = new Set();
   state.stringResource.visibleQualifiers = [...STRING_RESOURCE_DEFAULT_QUALIFIERS];
   elements.stringResourceSearchInput.value = '';
+  elements.stringResourceDatasetSelect.value = '';
   setStringResourceUploadStatus('다국어 문자열 리소스 엑셀을 선택하세요.');
   renderStringResource();
 });
@@ -562,6 +574,7 @@ elements.mappingDatasetSelect.addEventListener('change', (event) => {
   state.mapping.selectedGroupId = '';
   state.mapping.selectedSlots = [];
   if (!event.target.value) {
+    state.mapping.sourceMode = 'static';
     state.mapping.isLoaded = false;
     state.mapping.isLoading = true;
     state.mapping.rows = [];
@@ -580,6 +593,7 @@ elements.mappingDatasetSelect.addEventListener('change', (event) => {
 });
 
 elements.explorerFileInput.addEventListener('change', async () => {
+  state.explorer.sourceMode = 'local';
   state.explorer.selectedDatasetId = '';
   state.explorer.selectedCountry = '';
   elements.explorerDatasetSelect.value = '';
@@ -590,6 +604,7 @@ elements.explorerFileInput.addEventListener('change', async () => {
 });
 
 elements.explorerFolderInput.addEventListener('change', async () => {
+  state.explorer.sourceMode = 'local';
   state.explorer.selectedDatasetId = '';
   state.explorer.selectedCountry = '';
   elements.explorerDatasetSelect.value = '';
@@ -612,11 +627,13 @@ elements.explorerDatasetSelect.addEventListener('change', (event) => {
   state.explorer.selectedDatasetId = event.target.value;
   state.explorer.selectedCountry = '';
   if (!state.explorer.selectedDatasetId) {
+    state.explorer.sourceMode = 'local';
     clearDbExplorerRows();
     renderExplorerCountries([]);
     renderExplorer();
     return;
   }
+  state.explorer.sourceMode = 'db';
   void loadExplorerCountries().then(() => searchDbExplorerRecords());
 });
 
@@ -659,11 +676,16 @@ elements.explorerModalBackdrop.addEventListener('click', () => {
 });
 
 elements.clearExplorerButton.addEventListener('click', () => {
+  state.explorer.sourceMode = 'local';
+  state.explorer.selectedDatasetId = '';
+  state.explorer.selectedCountry = '';
   state.explorer.errors = [];
   state.explorer.isFileDrawerOpen = false;
   state.explorer.items = [];
   state.explorer.modalItemId = null;
   state.explorer.query = '';
+  elements.explorerDatasetSelect.value = '';
+  renderExplorerCountries([]);
   elements.explorerFileInput.value = '';
   elements.explorerFolderInput.value = '';
   elements.explorerSearchInput.value = '';
@@ -904,6 +926,11 @@ function showExplorerTool() {
   elements.adminApp.hidden = true;
   document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.backToHubFromExplorerButton.focus();
+  if (state.explorer.sourceMode === 'local' && hasLocalExplorerRows()) {
+    void loadExplorerDatasets({ autoLoad: false });
+    renderExplorer();
+    return;
+  }
   void loadExplorerDatasets();
 }
 
@@ -922,6 +949,9 @@ function showMappingTool() {
   document.body.classList.remove('formatter-active', 'json-editor-active');
   document.body.classList.add('mapping-active');
   elements.mappingGroupSearchInput.focus();
+  if (state.mapping.sourceMode === 'static') {
+    state.mapping.isLoaded = false;
+  }
   void loadMappingData();
 }
 
@@ -939,6 +969,11 @@ function showStringResourceTool() {
   elements.adminApp.hidden = true;
   document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.stringResourceSearchInput.focus();
+  if (state.stringResource.sourceMode === 'local' && hasLocalStringResourceRows()) {
+    void loadStringResourceDatasets({ autoLoad: false });
+    renderStringResource();
+    return;
+  }
   void loadStringResourceDatasets();
   renderStringResource();
 }
@@ -2330,19 +2365,28 @@ function renderDatasetOptions(selectElement, datasets, fallbackLabel) {
   selectElement.value = values.has(currentValue) ? currentValue : '';
 }
 
-async function loadExplorerDatasets() {
+async function loadExplorerDatasets({ autoLoad = true } = {}) {
   try {
     state.explorer.datasets = await fetchDatasets('json');
     renderDatasetOptions(elements.explorerDatasetSelect, state.explorer.datasets, 'Local files');
+    if (!autoLoad) {
+      return;
+    }
     if (!state.explorer.selectedDatasetId) {
       const activeDataset = state.explorer.datasets.find((dataset) => dataset.isActive !== false) ?? state.explorer.datasets[0];
       state.explorer.selectedDatasetId = activeDataset?.id ? String(activeDataset.id) : '';
       elements.explorerDatasetSelect.value = state.explorer.selectedDatasetId;
     }
+    if (state.explorer.selectedDatasetId) {
+      state.explorer.sourceMode = 'db';
+    }
     await loadExplorerCountries();
     await searchDbExplorerRecords();
   } catch (error) {
     state.explorer.selectedDatasetId = '';
+    if (state.explorer.sourceMode === 'db') {
+      clearDbExplorerRows();
+    }
     renderDatasetOptions(elements.explorerDatasetSelect, [], 'Local files');
     renderExplorerCountries([]);
     setExplorerUploadStatus(error instanceof Error ? `DB unavailable: ${error.message}` : 'DB unavailable');
@@ -2391,11 +2435,17 @@ function renderExplorerCountries(countries) {
 }
 
 function clearDbExplorerRows() {
+  explorerDbSearchRequestSeq += 1;
+  explorerRecordDetailRequestSeq += 1;
   state.explorer.items = state.explorer.items.filter((item) => item.sourceType !== 'db');
   state.explorer.errors = [];
   state.explorer.isDbLoaded = false;
   state.explorer.isDbLoading = false;
   setExplorerUploadStatus('JSON 파일을 선택하거나 폴더를 선택하세요.');
+}
+
+function hasLocalExplorerRows() {
+  return state.explorer.items.some((item) => item.sourceType !== 'db');
 }
 
 async function searchDbExplorerRecords() {
@@ -2404,36 +2454,54 @@ async function searchDbExplorerRecords() {
     return;
   }
 
+  const requestToken = ++explorerDbSearchRequestSeq;
+  const datasetId = state.explorer.selectedDatasetId;
+  const country = state.explorer.selectedCountry;
+  const query = state.explorer.query.trim();
   state.explorer.isDbLoading = true;
   state.explorer.errors = [];
   renderExplorer();
 
   try {
     const params = new URLSearchParams({
-      datasetId: state.explorer.selectedDatasetId,
+      datasetId,
       limit: '200'
     });
-    if (state.explorer.selectedCountry) {
-      params.set('country', state.explorer.selectedCountry);
+    if (country) {
+      params.set('country', country);
     }
-    if (state.explorer.query.trim()) {
-      params.set('q', state.explorer.query.trim());
+    if (query) {
+      params.set('q', query);
     }
     const response = await fetch(`/api/json-records?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`JSON record request failed: ${response.status}`);
     }
     const body = await response.json();
+    if (
+      requestToken !== explorerDbSearchRequestSeq
+      || state.explorer.sourceMode !== 'db'
+      || state.explorer.selectedDatasetId !== datasetId
+      || state.explorer.selectedCountry !== country
+      || state.explorer.query.trim() !== query
+    ) {
+      return;
+    }
     state.explorer.items = (Array.isArray(body.records) ? body.records : []).map(createDbExplorerItem);
     state.explorer.isDbLoaded = true;
     setExplorerUploadStatus(`DB records loaded: ${(body.total ?? state.explorer.items.length).toLocaleString()}`);
   } catch (error) {
+    if (requestToken !== explorerDbSearchRequestSeq) {
+      return;
+    }
     state.explorer.items = [];
     state.explorer.errors = [error instanceof Error ? error.message : String(error)];
     setExplorerUploadStatus(error instanceof Error ? error.message : String(error));
   } finally {
-    state.explorer.isDbLoading = false;
-    renderExplorer();
+    if (requestToken === explorerDbSearchRequestSeq) {
+      state.explorer.isDbLoading = false;
+      renderExplorer();
+    }
   }
 }
 
@@ -2454,10 +2522,20 @@ function createDbExplorerItem(record) {
   return {
     ...value,
     id: `db-${record.id}`,
+    recordId: record.id,
     sourceType: 'db',
     value,
     valueKind: record.valueKind ?? 'json'
   };
+}
+
+async function fetchExplorerRecordDetail(recordId) {
+  const response = await fetch(`/api/json-records/${encodeURIComponent(recordId)}`);
+  if (!response.ok) {
+    throw new Error(`JSON record detail request failed: ${response.status}`);
+  }
+  const body = await response.json();
+  return body.record ?? null;
 }
 
 async function loadMappingDatasets() {
@@ -2487,6 +2565,7 @@ async function loadMappingDatasetRows(datasetId = elements.mappingDatasetSelect.
     const body = await response.json();
     state.mapping.rows = Array.isArray(body.rows) ? body.rows : [];
     state.mapping.source = state.mapping.datasets.find((dataset) => String(dataset.id) === String(datasetId))?.name ?? 'DB Mapping dataset';
+    state.mapping.sourceMode = 'db';
     state.mapping.isLoaded = true;
     return true;
   } catch (error) {
@@ -2498,20 +2577,27 @@ async function loadMappingDatasetRows(datasetId = elements.mappingDatasetSelect.
   }
 }
 
-async function loadStringResourceDatasets() {
+async function loadStringResourceDatasets({ autoLoad = true } = {}) {
   try {
     state.stringResource.datasets = await fetchDatasets('string_resource');
     renderDatasetOptions(elements.stringResourceDatasetSelect, state.stringResource.datasets, 'Uploaded files');
+    if (!autoLoad) {
+      return;
+    }
     if (!state.stringResource.selectedDatasetId) {
       const activeDataset = state.stringResource.datasets.find((dataset) => dataset.isActive !== false) ?? state.stringResource.datasets[0];
       state.stringResource.selectedDatasetId = activeDataset?.id ? String(activeDataset.id) : '';
       elements.stringResourceDatasetSelect.value = state.stringResource.selectedDatasetId;
     }
     if (state.stringResource.selectedDatasetId) {
+      state.stringResource.sourceMode = 'db';
       await loadStringResourceDatasetRows(state.stringResource.selectedDatasetId, state.stringResource.query);
     }
   } catch (error) {
     state.stringResource.selectedDatasetId = '';
+    if (state.stringResource.sourceMode === 'db') {
+      clearDbStringResourceRows();
+    }
     renderDatasetOptions(elements.stringResourceDatasetSelect, [], 'Uploaded files');
     setStringResourceUploadStatus(error instanceof Error ? `DB unavailable: ${error.message}` : 'DB unavailable');
   }
@@ -2525,25 +2611,40 @@ async function loadStringResourceDatasetRows(datasetId = state.stringResource.se
 
   state.stringResource.selectedDatasetId = datasetId;
   state.stringResource.errors = [];
+  const requestToken = ++stringResourceDbRowsRequestSeq;
+  const requestedQuery = query.trim();
   setStringResourceUploadStatus('Loading DB string resources.');
 
   try {
     const params = new URLSearchParams({ datasetId, limit: '500' });
-    if (query.trim()) {
-      params.set('q', query.trim());
+    if (requestedQuery) {
+      params.set('q', requestedQuery);
     }
     const response = await fetch(`/api/string-resource-rows?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`String resource row request failed: ${response.status}`);
     }
     const body = await response.json();
+    if (
+      requestToken !== stringResourceDbRowsRequestSeq
+      || state.stringResource.sourceMode !== 'db'
+      || state.stringResource.selectedDatasetId !== datasetId
+      || state.stringResource.query.trim() !== requestedQuery
+    ) {
+      return;
+    }
     applyStringResourceDbRows(Array.isArray(body.rows) ? body.rows : [], datasetId);
     setStringResourceUploadStatus(`DB string resources loaded: ${(body.total ?? state.stringResource.rows.length).toLocaleString()}`);
   } catch (error) {
+    if (requestToken !== stringResourceDbRowsRequestSeq) {
+      return;
+    }
     state.stringResource.errors = [error instanceof Error ? error.message : String(error)];
     setStringResourceUploadStatus(error instanceof Error ? error.message : String(error));
   } finally {
-    renderStringResource();
+    if (requestToken === stringResourceDbRowsRequestSeq) {
+      renderStringResource();
+    }
   }
 }
 
@@ -2577,6 +2678,7 @@ function applyStringResourceDbRows(rows, datasetId) {
 }
 
 function clearDbStringResourceRows() {
+  stringResourceDbRowsRequestSeq += 1;
   state.stringResource.files = state.stringResource.files.filter((file) => !String(file.fileId).startsWith('string-resource-db-'));
   state.stringResource.rows = state.stringResource.files.flatMap((file) => file.rows);
   state.stringResource.expandedFileIds = new Set(
@@ -2586,6 +2688,10 @@ function clearDbStringResourceRows() {
     [...state.stringResource.selectedSheetIds].filter((sheetId) => !String(sheetId).startsWith('string-resource-db-'))
   );
   setStringResourceUploadStatus('다국어 문자열 리소스 엑셀을 선택하세요.');
+}
+
+function hasLocalStringResourceRows() {
+  return state.stringResource.files.some((file) => !String(file.fileId).startsWith('string-resource-db-'));
 }
 
 async function loadMappingData() {
@@ -2625,6 +2731,7 @@ async function loadStaticMappingData() {
   const workbook = await response.json();
   state.mapping.rows = normalizeMappingWorkbook(workbook);
   state.mapping.source = workbook.source ?? 'Mapping table_v3.3.19.xlsx';
+  state.mapping.sourceMode = 'static';
   state.mapping.error = '';
   state.mapping.isLoaded = true;
 }
@@ -3278,6 +3385,10 @@ function openExplorerModal(id) {
   hideExplorerSuggestions();
   state.explorer.modalItemId = id;
   renderExplorerModal();
+  const item = state.explorer.items.find((candidate) => candidate.id === id);
+  if (item?.sourceType === 'db' && item.recordId && !item.detailContent && !item.isDetailLoading) {
+    void hydrateExplorerModalDetail(item);
+  }
   if (!elements.explorerModal.hidden) {
     elements.closeExplorerModalButton.focus();
   }
@@ -3312,7 +3423,51 @@ function renderExplorerModal() {
   elements.explorerModal.hidden = false;
   elements.explorerModalTitle.textContent = item.recognitionText || item.sourceFilename || 'JSON 상세';
   elements.explorerModalMeta.textContent = meta.join(' | ');
-  elements.explorerModalJson.textContent = formatDownloadContent(item);
+  if (item.isDetailLoading) {
+    elements.explorerModalJson.textContent = 'Loading DB record detail.';
+  } else if (item.detailError) {
+    elements.explorerModalJson.textContent = item.detailError;
+  } else {
+    elements.explorerModalJson.textContent = item.detailContent ?? formatDownloadContent(item);
+  }
+}
+
+async function hydrateExplorerModalDetail(item) {
+  const requestToken = ++explorerRecordDetailRequestSeq;
+  item.isDetailLoading = true;
+  item.detailError = '';
+  renderExplorerModal();
+
+  try {
+    const record = await fetchExplorerRecordDetail(item.recordId);
+    if (
+      requestToken !== explorerRecordDetailRequestSeq
+      || state.explorer.modalItemId !== item.id
+      || state.explorer.sourceMode !== 'db'
+    ) {
+      return;
+    }
+    if (record?.rawJson != null) {
+      item.detailContent = typeof record.rawJson === 'string'
+        ? record.rawJson
+        : formatJson(record.rawJson);
+    } else if (record?.rawText != null) {
+      item.detailContent = String(record.rawText);
+      item.valueKind = 'raw-string';
+    } else {
+      item.detailContent = formatDownloadContent(item);
+    }
+  } catch (error) {
+    if (requestToken !== explorerRecordDetailRequestSeq) {
+      return;
+    }
+    item.detailError = error instanceof Error ? error.message : String(error);
+  } finally {
+    if (requestToken === explorerRecordDetailRequestSeq) {
+      item.isDetailLoading = false;
+      renderExplorerModal();
+    }
+  }
 }
 
 function restoreFocus(savedTarget, fallbackTarget) {
