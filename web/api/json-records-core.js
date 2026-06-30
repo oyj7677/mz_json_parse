@@ -5,14 +5,14 @@ import {
   parseUploadedJsonContent
 } from '../public/core.js';
 
-const DEFAULT_IMPORT_BATCH_NAME = 'JSON upload';
 const MAX_IMPORT_FILES = 500;
 const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
-export function buildJsonRecordFromUpload({ filename = '', language = '', text = '' } = {}) {
+export function buildJsonRecordFromUpload({ countryRegion = '', filename = '', language = '', text = '' } = {}) {
   const sourceFilename = sanitizeSourceFilename(filename);
   const sourceText = String(text ?? '');
   const selectedLanguage = sanitizeImportLanguage(language);
+  const selectedCountryRegion = sanitizeCountryRegion(countryRegion);
   const parsed = parseUploadedJsonContent(sourceFilename, sourceText);
   const explorerItem = createExplorerItem({
     id: 1,
@@ -31,10 +31,12 @@ export function buildJsonRecordFromUpload({ filename = '', language = '', text =
 
   return {
     contentHash: sha256(JSON.stringify({
+      countryRegion: selectedCountryRegion,
       language: resolvedLanguage,
-      value: hashSource
+      datasetScopedValue: hashSource
     })),
     contentType: explorerItem.contentType,
+    countryRegion: selectedCountryRegion,
     language: resolvedLanguage,
     rawJson,
     rawText,
@@ -49,7 +51,15 @@ export function buildJsonRecordFromUpload({ filename = '', language = '', text =
 
 export function normalizeJsonImportPayload(payload = {}) {
   const files = Array.isArray(payload.files) ? payload.files : [];
+  const datasetId = String(payload.datasetId ?? '').trim();
+  const countryRegion = sanitizeCountryRegion(payload.countryRegion);
   const language = sanitizeImportLanguage(payload.language);
+  if (!datasetId) {
+    throw httpError(400, 'datasetId is required.');
+  }
+  if (!countryRegion) {
+    throw httpError(400, 'countryRegion is required.');
+  }
   if (files.length === 0) {
     throw httpError(400, '업로드할 JSON 파일이 없습니다.');
   }
@@ -63,15 +73,12 @@ export function normalizeJsonImportPayload(payload = {}) {
     if (byteLength(text) > MAX_IMPORT_FILE_BYTES) {
       throw httpError(413, `${filename}: 파일 크기가 너무 큽니다.`);
     }
-    return buildJsonRecordFromUpload({ filename, language, text });
+    return buildJsonRecordFromUpload({ countryRegion, filename, language, text });
   });
 
   return {
-    batch: {
-      description: String(payload.description ?? '').trim(),
-      name: String(payload.batchName ?? payload.name ?? '').trim() || DEFAULT_IMPORT_BATCH_NAME,
-      sourceType: 'admin_upload'
-    },
+    countryRegion,
+    datasetId,
     records
   };
 }
@@ -86,14 +93,37 @@ export async function handleJsonRecordsRequest(request, { repository } = {}) {
   }
 
   const url = new URL(request.url);
+  const datasetId = String(url.searchParams.get('datasetId') ?? '').trim();
+  const countryRegion = sanitizeCountryRegion(
+    url.searchParams.get('country') ?? url.searchParams.get('countryRegion')
+  );
   const query = url.searchParams.get('q') ?? '';
   const limit = clampInteger(url.searchParams.get('limit'), 1, 200, 50);
   const offset = clampInteger(url.searchParams.get('offset'), 0, 100000, 0);
-  const result = await repo.searchRecords({ limit, offset, query });
+  const result = await repo.searchRecords({ countryRegion, datasetId, limit, offset, query });
 
   return jsonResponse({
     records: (result.records ?? []).map(rowToPublicRecord),
     total: Number(result.total ?? result.records?.length ?? 0)
+  });
+}
+
+export async function handleJsonCountriesRequest(request, { repository } = {}) {
+  if (request.method !== 'GET') {
+    return jsonResponse({ error: 'Method not allowed.' }, 405);
+  }
+  const repo = await ensureRepository(repository);
+  if (repo instanceof Response) {
+    return repo;
+  }
+
+  const datasetId = String(new URL(request.url).searchParams.get('datasetId') ?? '').trim();
+  if (!datasetId) {
+    return jsonResponse({ error: 'datasetId is required.' }, 400);
+  }
+
+  return jsonResponse({
+    countries: await repo.listCountries(datasetId)
   });
 }
 
@@ -194,6 +224,8 @@ export function rowToPublicRecord(row = {}) {
     batchId: row.batch_id ?? row.batchId ?? '',
     contentType: row.content_type ?? row.contentType ?? '',
     createdAt: row.created_at ?? row.createdAt ?? '',
+    countryRegion: row.country_region ?? row.countryRegion ?? '',
+    datasetId: row.dataset_id ?? row.datasetId ?? '',
     id: row.id ?? '',
     language: row.language ?? '',
     recognitionText: row.recognition_text ?? row.recognitionText ?? '',
@@ -219,6 +251,10 @@ function sanitizeSourceFilename(filename) {
 
 function sanitizeImportLanguage(language) {
   return String(language ?? '').trim().slice(0, 64);
+}
+
+function sanitizeCountryRegion(countryRegion) {
+  return String(countryRegion ?? '').trim().slice(0, 64);
 }
 
 function sha256(value) {

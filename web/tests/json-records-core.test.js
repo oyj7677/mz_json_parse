@@ -51,19 +51,23 @@ describe('JSON DB record normalization', () => {
     assert.match(record.rawText, /Raw Weather/);
   });
 
-  it('normalizes import payloads with batch metadata and multiple files', () => {
+  it('normalizes import payloads with dataset country metadata and multiple files', () => {
     const payload = normalizeJsonImportPayload({
-      batchName: 'June logs',
-      description: 'smoke test',
+      countryRegion: 'AU',
+      datasetId: 'dataset-1',
       files: [
         { filename: 'a.json', text: '{"recognitionText":"A"}' },
         { filename: 'b.json', text: '{"recognitionText":"B"}' }
       ]
     });
 
-    assert.equal(payload.batch.name, 'June logs');
-    assert.equal(payload.batch.description, 'smoke test');
+    assert.equal(payload.countryRegion, 'AU');
+    assert.equal(payload.datasetId, 'dataset-1');
     assert.equal(payload.records.length, 2);
+    assert.deepEqual(
+      payload.records.map((record) => record.countryRegion),
+      ['AU', 'AU']
+    );
     assert.deepEqual(
       payload.records.map((record) => record.recognitionText),
       ['A', 'B']
@@ -72,7 +76,8 @@ describe('JSON DB record normalization', () => {
 
   it('applies the admin-selected language to every imported record', () => {
     const payload = normalizeJsonImportPayload({
-      batchName: 'Australia logs',
+      countryRegion: 'AU',
+      datasetId: 'dataset-1',
       language: 'en_AU',
       files: [
         { filename: 'a.json', text: '{"recognitionText":"A"}' },
@@ -88,10 +93,14 @@ describe('JSON DB record normalization', () => {
 
   it('keeps otherwise identical JSON distinct across selected languages', () => {
     const australia = normalizeJsonImportPayload({
+      countryRegion: 'AU',
+      datasetId: 'dataset-1',
       language: 'en_AU',
       files: [{ filename: 'same.json', text: '{"recognitionText":"Radio"}' }]
     });
     const unitedStates = normalizeJsonImportPayload({
+      countryRegion: 'AU',
+      datasetId: 'dataset-1',
       language: 'en_US',
       files: [{ filename: 'same.json', text: '{"recognitionText":"Radio"}' }]
     });

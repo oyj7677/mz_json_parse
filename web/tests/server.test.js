@@ -117,9 +117,13 @@ describe('translation server helpers', () => {
   it('serves local JSON records API routes with injected repository dependencies', async () => {
     const repository = {
       async importRecords(payload) {
+        assert.equal(payload.datasetId, 'dataset-1');
+        assert.equal(payload.countryRegion, 'AU');
         assert.equal(payload.records.length, 1);
+        assert.equal(payload.records[0].countryRegion, 'AU');
         return {
-          batch: { id: 'batch-1', recordCount: 1 },
+          countryRegion: payload.countryRegion,
+          datasetId: payload.datasetId,
           insertedCount: 1,
           skippedCount: 0
         };
@@ -149,6 +153,8 @@ describe('translation server helpers', () => {
 
       const importResponse = await fetch(`http://127.0.0.1:${port}/api/admin/json-records/import`, {
         body: JSON.stringify({
+          countryRegion: 'AU',
+          datasetId: 'dataset-1',
           files: [{ filename: 'weather.json', text: '{"recognitionText":"Weather"}' }]
         }),
         headers: { 'x-admin-key': 'secret' },

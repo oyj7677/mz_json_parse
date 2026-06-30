@@ -57,6 +57,8 @@ export function createJsonRecordsRepository(sql) {
         select
           id,
           batch_id,
+          dataset_id,
+          country_region,
           source_filename,
           recognition_text,
           language,
@@ -114,24 +116,16 @@ export function createJsonRecordsRepository(sql) {
       };
     },
 
-    async importRecords({ batch, records }) {
-      const batchRows = await sql.query(`
-        insert into json_import_batches (name, description, source_type, record_count, error_count)
-        values ($1, $2, $3, 0, 0)
-        returning id, name, record_count, error_count, created_at
-      `, [
-        batch.name,
-        batch.description,
-        batch.sourceType
-      ]);
-      const savedBatch = batchRows[0];
+    async importRecords({ countryRegion = '', datasetId = '', records = [] }) {
       let insertedCount = 0;
       let skippedCount = 0;
 
       for (const record of records) {
+        const recordCountryRegion = String(record.countryRegion ?? countryRegion ?? '').trim();
         const insertedRows = await sql.query(`
           insert into json_records (
-            batch_id,
+            dataset_id,
+            country_region,
             source_filename,
             recognition_text,
             language,
@@ -143,11 +137,12 @@ export function createJsonRecordsRepository(sql) {
             content_hash,
             value_kind
           )
-          values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
           on conflict do nothing
           returning id
         `, [
-          savedBatch.id,
+          datasetId,
+          recordCountryRegion,
           record.sourceFilename,
           record.recognitionText,
           record.language,
@@ -167,32 +162,45 @@ export function createJsonRecordsRepository(sql) {
         }
       }
 
-      const updatedRows = await sql.query(`
-        update json_import_batches
+      const countRows = await sql.query(`
+        select count(*)::int as count
+        from json_records
+        where dataset_id = $1::uuid
+          and deleted_at is null
+      `, [datasetId]);
+      const recordCount = Number(countRows[0]?.count ?? insertedCount);
+
+      await sql.query(`
+        update datasets
         set record_count = $1,
             error_count = $2
         where id = $3
-        returning id, name, record_count, error_count, created_at
+          and deleted_at is null
       `, [
-        insertedCount,
+        recordCount,
         skippedCount,
-        savedBatch.id
+        datasetId
       ]);
 
       return {
-        batch: normalizeBatchRow(updatedRows[0] ?? savedBatch),
+        countryRegion,
+        datasetId,
         insertedCount,
         skippedCount
       };
     },
 
-    async searchRecords({ limit = 50, offset = 0, query = '' } = {}) {
+    async searchRecords({ countryRegion = '', datasetId = '', limit = 50, offset = 0, query = '' } = {}) {
+      const datasetFilter = String(datasetId ?? '').trim();
+      const countryFilter = String(countryRegion ?? '').trim();
       const trimmedQuery = String(query ?? '').trim();
       const pattern = `%${trimmedQuery}%`;
       const rows = await sql.query(`
         select
           id,
           batch_id,
+          dataset_id,
+          country_region,
           source_filename,
           recognition_text,
           language,
@@ -204,20 +212,24 @@ export function createJsonRecordsRepository(sql) {
           count(*) over() as total_count
         from json_records
         where deleted_at is null
+          and ($1 = '' or dataset_id = $1::uuid)
+          and ($2 = '' or country_region = $2)
           and (
-            $1 = ''
-            or source_filename ilike $2
-            or recognition_text ilike $2
-            or language ilike $2
-            or content_type ilike $2
-            or table_version ilike $2
-            or slot_summary ilike $2
-            or raw_text ilike $2
-            or raw_json::text ilike $2
+            $3 = ''
+            or source_filename ilike $4
+            or recognition_text ilike $4
+            or language ilike $4
+            or content_type ilike $4
+            or table_version ilike $4
+            or slot_summary ilike $4
+            or raw_text ilike $4
+            or raw_json::text ilike $4
           )
         order by created_at desc
-        limit $3 offset $4
+        limit $5 offset $6
       `, [
+        datasetFilter,
+        countryFilter,
         trimmedQuery,
         pattern,
         limit,
@@ -228,16 +240,23 @@ export function createJsonRecordsRepository(sql) {
         records: rows,
         total: Number(rows[0]?.total_count ?? 0)
       };
-    }
-  };
-}
+    },
 
-function normalizeBatchRow(row = {}) {
-  return {
-    createdAt: row.created_at ?? row.createdAt ?? '',
-    errorCount: Number(row.error_count ?? row.errorCount ?? 0),
-    id: row.id ?? '',
-    name: row.name ?? '',
-    recordCount: Number(row.record_count ?? row.recordCount ?? 0)
+    async listCountries(datasetId) {
+      const rows = await sql.query(`
+        select country_region, count(*)::int as count
+        from json_records
+        where dataset_id = $1::uuid
+          and deleted_at is null
+          and country_region <> ''
+        group by country_region
+        order by country_region asc
+      `, [datasetId]);
+
+      return rows.map((row) => ({
+        countryRegion: row.country_region,
+        count: Number(row.count ?? 0)
+      }));
+    }
   };
 }
