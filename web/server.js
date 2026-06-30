@@ -15,6 +15,11 @@ import {
 } from './api/json-records-core.js';
 import { getJsonRecordsRepository } from './api/json-records-repository.js';
 import {
+  handleAdminMappingImportRequest,
+  handleMappingRowsRequest
+} from './api/mapping-table-core.js';
+import { getMappingTableRepository } from './api/mapping-table-repository.js';
+import {
   handleActiveDatasetRequest,
   handleAdminDatasetActiveRequest,
   handleAdminDatasetDeleteRequest,
@@ -45,7 +50,8 @@ const MIME_TYPES = {
 export function createAppServer({
   datasetsRepository,
   env = process.env,
-  jsonRecordsRepository
+  jsonRecordsRepository,
+  mappingTableRepository
 } = {}) {
   return createServer(async (request, response) => {
     try {
@@ -55,6 +61,10 @@ export function createAppServer({
       }
 
       if (await handleJsonRecordsApi(request, response, { env, jsonRecordsRepository })) {
+        return;
+      }
+
+      if (await handleMappingTableApi(request, response, { env, mappingTableRepository })) {
         return;
       }
 
@@ -146,6 +156,26 @@ async function handleJsonRecordsApi(request, response, { env, jsonRecordsReposit
       id: decodeURIComponent(pathname.replace('/api/admin/json-batches/', '')),
       repository
     });
+  } else {
+    return false;
+  }
+
+  await sendFetchResponse(response, apiResponse);
+  return true;
+}
+
+async function handleMappingTableApi(request, response, { env, mappingTableRepository }) {
+  const pathname = getPathname(request);
+  let apiResponse;
+
+  if (pathname === '/api/mapping-rows') {
+    const repository = mappingTableRepository ?? (() => getMappingTableRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleMappingRowsRequest(apiRequest, { repository });
+  } else if (pathname === '/api/admin/mapping-table/import') {
+    const repository = mappingTableRepository ?? (() => getMappingTableRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminMappingImportRequest(apiRequest, { env, repository });
   } else {
     return false;
   }

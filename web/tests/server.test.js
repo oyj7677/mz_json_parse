@@ -10,6 +10,7 @@ import {
 import { createAppServer } from '../server.js';
 
 const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
+const MAPPING_DATASET_ID = '00000000-0000-4000-8000-000000000101';
 
 describe('translation server helpers', () => {
   it('builds a keyless Google Translate URL for English filename translation', () => {
@@ -176,6 +177,80 @@ describe('translation server helpers', () => {
       assert.equal(importBody.insertedCount, 1);
       assert.equal(countriesResponse.status, 200);
       assert.deepEqual(countriesBody.countries, [{ countryRegion: 'AU', count: 1 }]);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('serves local mapping table API routes with injected repository dependencies', async () => {
+    const repository = {
+      async importRows(payload) {
+        assert.equal(payload.datasetId, MAPPING_DATASET_ID);
+        assert.equal(payload.rows.length, 1);
+        assert.equal(payload.rows[0].domainText, 'Weather');
+        return {
+          datasetId: payload.datasetId,
+          insertedCount: 1,
+          skippedCount: 0
+        };
+      },
+      async listRows(datasetId, { query }) {
+        assert.equal(datasetId, MAPPING_DATASET_ID);
+        assert.equal(query, 'weather');
+        return {
+          rows: [{
+            id: 'row-1',
+            datasetId,
+            sourceFilename: 'mapping.xlsx',
+            sheetName: 'Sheet1',
+            rowNumber: 7,
+            domainText: 'Weather',
+            values: { A: 'Weather' }
+          }],
+          total: 1
+        };
+      }
+    };
+    const server = createAppServer({
+      env: { JSON_ADMIN_KEY: 'secret' },
+      mappingTableRepository: repository
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    try {
+      const { port } = server.address();
+      const searchResponse = await fetch(`http://127.0.0.1:${port}/api/mapping-rows?datasetId=${MAPPING_DATASET_ID}&q=weather`);
+      const searchBody = await searchResponse.json();
+
+      const importResponse = await fetch(`http://127.0.0.1:${port}/api/admin/mapping-table/import`, {
+        body: JSON.stringify({
+          datasetId: MAPPING_DATASET_ID,
+          rows: [{
+            sourceFilename: 'mapping.xlsx',
+            sheetName: 'Sheet1',
+            rowNumber: 7,
+            domainText: 'Weather',
+            values: { A: 'Weather' }
+          }]
+        }),
+        headers: { 'x-admin-key': 'secret' },
+        method: 'POST'
+      });
+      const importBody = await importResponse.json();
+
+      assert.equal(searchResponse.status, 200);
+      assert.equal(searchBody.rows[0].domainText, 'Weather');
+      assert.equal(importResponse.status, 200);
+      assert.equal(importBody.insertedCount, 1);
     } finally {
       await new Promise((resolve, reject) => {
         server.close((error) => {

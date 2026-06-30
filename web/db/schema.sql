@@ -108,3 +108,46 @@ create index if not exists json_record_slots_record_id_idx
 
 create index if not exists json_record_slots_name_value_idx
   on json_record_slots (slot_name, slot_value);
+
+create table if not exists mapping_rows (
+  id uuid primary key default gen_random_uuid(),
+  dataset_id uuid not null references datasets(id) on delete cascade,
+  source_filename text not null default '',
+  sheet_name text not null default '',
+  row_number integer,
+  domain text not null default '',
+  intention text not null default '',
+  mapping_intent text not null default '',
+  slot_text text not null default '',
+  utterance_text text not null default '',
+  primary_text text not null default '',
+  note_text text not null default '',
+  raw_row jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create index if not exists mapping_rows_dataset_sheet_idx
+  on mapping_rows (dataset_id, sheet_name, row_number)
+  where deleted_at is null;
+
+create index if not exists mapping_rows_search_idx
+  on mapping_rows using gin (
+    to_tsvector(
+      'simple',
+      concat_ws(
+        ' ',
+        source_filename,
+        sheet_name,
+        domain,
+        intention,
+        mapping_intent,
+        slot_text,
+        utterance_text,
+        primary_text,
+        note_text,
+        raw_row::text
+      )
+    )
+  )
+  where deleted_at is null;
