@@ -13,6 +13,14 @@ import {
   handleJsonRecordsRequest
 } from './api/json-records-core.js';
 import { getJsonRecordsRepository } from './api/json-records-repository.js';
+import {
+  handleActiveDatasetRequest,
+  handleAdminDatasetActiveRequest,
+  handleAdminDatasetDeleteRequest,
+  handleAdminDatasetsRequest,
+  handleDatasetsRequest
+} from './api/datasets-core.js';
+import { getDatasetsRepository } from './api/datasets-repository.js';
 import { normalizeToolRoute } from './public/routes.js';
 
 export {
@@ -34,6 +42,7 @@ const MIME_TYPES = {
 };
 
 export function createAppServer({
+  datasetsRepository,
   env = process.env,
   jsonRecordsRepository
 } = {}) {
@@ -45,6 +54,10 @@ export function createAppServer({
       }
 
       if (await handleJsonRecordsApi(request, response, { env, jsonRecordsRepository })) {
+        return;
+      }
+
+      if (await handleDatasetsApi(request, response, { datasetsRepository, env })) {
         return;
       }
 
@@ -126,6 +139,46 @@ async function handleJsonRecordsApi(request, response, { env, jsonRecordsReposit
     apiResponse = await handleAdminBatchDeleteRequest(apiRequest, {
       env,
       id: decodeURIComponent(pathname.replace('/api/admin/json-batches/', '')),
+      repository
+    });
+  } else {
+    return false;
+  }
+
+  await sendFetchResponse(response, apiResponse);
+  return true;
+}
+
+async function handleDatasetsApi(request, response, { datasetsRepository, env }) {
+  const pathname = getPathname(request);
+  let apiResponse;
+
+  if (pathname === '/api/datasets') {
+    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleDatasetsRequest(apiRequest, { repository });
+  } else if (pathname === '/api/datasets/active') {
+    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleActiveDatasetRequest(apiRequest, { repository });
+  } else if (pathname === '/api/admin/datasets') {
+    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminDatasetsRequest(apiRequest, { env, repository });
+  } else if (isAdminDatasetActivePath(pathname)) {
+    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminDatasetActiveRequest(apiRequest, {
+      env,
+      id: routeSegment(pathname, -2),
+      repository
+    });
+  } else if (isAdminDatasetDetailPath(pathname)) {
+    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminDatasetDeleteRequest(apiRequest, {
+      env,
+      id: routeSegment(pathname, -1),
       repository
     });
   } else {
@@ -224,6 +277,27 @@ async function serveStatic(request, response) {
 
 function getPathname(request) {
   return new URL(request.url ?? '/', 'http://localhost').pathname;
+}
+
+function isAdminDatasetActivePath(pathname) {
+  const segments = pathname.split('/').filter(Boolean);
+  return segments.length === 5 &&
+    segments[0] === 'api' &&
+    segments[1] === 'admin' &&
+    segments[2] === 'datasets' &&
+    segments[4] === 'active';
+}
+
+function isAdminDatasetDetailPath(pathname) {
+  const segments = pathname.split('/').filter(Boolean);
+  return segments.length === 4 &&
+    segments[0] === 'api' &&
+    segments[1] === 'admin' &&
+    segments[2] === 'datasets';
+}
+
+function routeSegment(pathname, offsetFromEnd) {
+  return decodeURIComponent(pathname.split('/').filter(Boolean).at(offsetFromEnd) ?? '');
 }
 
 function sendJson(response, status, payload) {

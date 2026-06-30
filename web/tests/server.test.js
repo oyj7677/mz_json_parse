@@ -174,6 +174,66 @@ describe('translation server helpers', () => {
     }
   });
 
+  it('serves local dataset API routes with injected repository dependencies', async () => {
+    const calls = [];
+    const repository = {
+      async listDatasets(toolType) {
+        calls.push(['list', toolType]);
+        return [{
+          id: 'dataset-1',
+          name: 'JSON uploads',
+          toolType
+        }];
+      },
+      async setActiveDataset(id) {
+        calls.push(['active', id]);
+        return {
+          id,
+          isActive: true,
+          name: 'JSON uploads',
+          toolType: 'json'
+        };
+      }
+    };
+    const server = createAppServer({
+      datasetsRepository: repository,
+      env: { JSON_ADMIN_KEY: 'secret' }
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    try {
+      const { port } = server.address();
+      const listResponse = await fetch(`http://127.0.0.1:${port}/api/datasets?tool=json`);
+      const listBody = await listResponse.json();
+
+      const activeResponse = await fetch(`http://127.0.0.1:${port}/api/admin/datasets/dataset-1/active`, {
+        headers: { 'x-admin-key': 'secret' },
+        method: 'PATCH'
+      });
+      const activeBody = await activeResponse.json();
+
+      assert.equal(listResponse.status, 200);
+      assert.equal(listBody.datasets[0].toolType, 'json');
+      assert.equal(activeResponse.status, 200);
+      assert.equal(activeBody.dataset.id, 'dataset-1');
+      assert.deepEqual(calls, [
+        ['list', 'json'],
+        ['active', 'dataset-1']
+      ]);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    }
+  });
+
   it('rejects non-POST Vercel requests', async () => {
     const response = await translateFilenameApi.fetch(
       new Request('https://example.com/api/translate-filename', { method: 'GET' })
