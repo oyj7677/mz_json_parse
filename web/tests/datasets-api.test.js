@@ -99,6 +99,208 @@ describe('datasets API handlers', () => {
     assert.equal(body.dataset.name, 'June uploads');
   });
 
+  it('normalizes non-plain dataset metadata to an empty object', async () => {
+    const repository = {
+      async createDataset(payload) {
+        assert.deepEqual(payload.metadata, {});
+        return {
+          id: 'dataset-array-metadata',
+          ...payload
+        };
+      }
+    };
+
+    const response = await handleAdminDatasetsRequest(new Request('https://example.com/api/admin/datasets', {
+      body: JSON.stringify({
+        metadata: ['not', 'plain'],
+        name: 'Array metadata',
+        toolType: 'json'
+      }),
+      headers: { 'x-admin-key': 'secret' },
+      method: 'POST'
+    }), {
+      env: { JSON_ADMIN_KEY: 'secret' },
+      repository
+    });
+
+    assert.equal(response.status, 200);
+  });
+
+  it('lists admin datasets by tool type when authorized', async () => {
+    const repository = {
+      async listDatasets(toolType) {
+        assert.equal(toolType, 'string_resource');
+        return [{
+          id: 'dataset-string-resource',
+          name: 'String workbook',
+          toolType
+        }];
+      }
+    };
+
+    const response = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=string_resource', {
+        headers: { authorization: 'Bearer secret' }
+      }),
+      {
+        env: { JSON_ADMIN_KEY: 'secret' },
+        repository
+      }
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.datasets[0].id, 'dataset-string-resource');
+  });
+
+  it('returns 503 when dataset repository is missing', async () => {
+    const publicResponse = await handleDatasetsRequest(
+      new Request('https://example.com/api/datasets?tool=json')
+    );
+    const activeResponse = await handleActiveDatasetRequest(
+      new Request('https://example.com/api/datasets/active?tool=json')
+    );
+    const adminResponse = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=json', {
+        headers: { 'x-admin-key': 'secret' }
+      }),
+      { env: { JSON_ADMIN_KEY: 'secret' } }
+    );
+    const adminActiveResponse = await handleAdminDatasetActiveRequest(
+      new Request('https://example.com/api/admin/datasets/dataset-1/active', {
+        headers: { 'x-admin-key': 'secret' },
+        method: 'PATCH'
+      }),
+      {
+        env: { JSON_ADMIN_KEY: 'secret' },
+        id: 'dataset-1'
+      }
+    );
+    const adminDeleteResponse = await handleAdminDatasetDeleteRequest(
+      new Request('https://example.com/api/admin/datasets/dataset-1', {
+        headers: { 'x-admin-key': 'secret' },
+        method: 'DELETE'
+      }),
+      {
+        env: { JSON_ADMIN_KEY: 'secret' },
+        id: 'dataset-1'
+      }
+    );
+    const publicBody = await publicResponse.json();
+    const activeBody = await activeResponse.json();
+    const adminBody = await adminResponse.json();
+    const adminActiveBody = await adminActiveResponse.json();
+    const adminDeleteBody = await adminDeleteResponse.json();
+
+    assert.equal(publicResponse.status, 503);
+    assert.equal(activeResponse.status, 503);
+    assert.equal(adminResponse.status, 503);
+    assert.equal(adminActiveResponse.status, 503);
+    assert.equal(adminDeleteResponse.status, 503);
+    assert.equal(publicBody.error, 'DATABASE_URL is not configured.');
+    assert.equal(activeBody.error, 'DATABASE_URL is not configured.');
+    assert.equal(adminBody.error, 'DATABASE_URL is not configured.');
+    assert.equal(adminActiveBody.error, 'DATABASE_URL is not configured.');
+    assert.equal(adminDeleteBody.error, 'DATABASE_URL is not configured.');
+  });
+
+  it('returns 400 for invalid dataset tool types', async () => {
+    const repository = {
+      async listDatasets() {
+        assert.fail('invalid tool type should not call listDatasets');
+      }
+    };
+
+    const publicResponse = await handleDatasetsRequest(
+      new Request('https://example.com/api/datasets?tool=unknown'),
+      { repository }
+    );
+    const activeResponse = await handleActiveDatasetRequest(
+      new Request('https://example.com/api/datasets/active?tool=unknown'),
+      { repository }
+    );
+    const adminResponse = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=unknown', {
+        headers: { 'x-admin-key': 'secret' }
+      }),
+      {
+        env: { JSON_ADMIN_KEY: 'secret' },
+        repository
+      }
+    );
+    const createResponse = await handleAdminDatasetsRequest(new Request('https://example.com/api/admin/datasets', {
+      body: JSON.stringify({ name: 'Bad tool', toolType: 'unknown' }),
+      headers: { 'x-admin-key': 'secret' },
+      method: 'POST'
+    }), {
+      env: { JSON_ADMIN_KEY: 'secret' },
+      repository
+    });
+
+    assert.equal(publicResponse.status, 400);
+    assert.equal(activeResponse.status, 400);
+    assert.equal(adminResponse.status, 400);
+    assert.equal(createResponse.status, 400);
+    assert.equal((await publicResponse.json()).error, 'Invalid tool type.');
+    assert.equal((await activeResponse.json()).error, 'Invalid tool type.');
+    assert.equal((await adminResponse.json()).error, 'Invalid tool type.');
+    assert.equal((await createResponse.json()).error, 'Invalid tool type.');
+  });
+
+  it('returns 405 for wrong dataset methods after valid admin authentication', async () => {
+    const repository = {};
+    const env = { JSON_ADMIN_KEY: 'secret' };
+    const headers = { 'x-admin-key': 'secret' };
+
+    const publicResponse = await handleDatasetsRequest(
+      new Request('https://example.com/api/datasets?tool=json', { method: 'POST' }),
+      { repository }
+    );
+    const adminListResponse = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=json', { headers, method: 'PUT' }),
+      { env, repository }
+    );
+    const activeResponse = await handleAdminDatasetActiveRequest(
+      new Request('https://example.com/api/admin/datasets/dataset-1/active', { headers, method: 'GET' }),
+      { env, id: 'dataset-1', repository }
+    );
+    const deleteResponse = await handleAdminDatasetDeleteRequest(
+      new Request('https://example.com/api/admin/datasets/dataset-1', { headers, method: 'GET' }),
+      { env, id: 'dataset-1', repository }
+    );
+
+    assert.equal(publicResponse.status, 405);
+    assert.equal(adminListResponse.status, 405);
+    assert.equal(activeResponse.status, 405);
+    assert.equal(deleteResponse.status, 405);
+    assert.equal((await publicResponse.json()).error, 'Method not allowed.');
+    assert.equal((await adminListResponse.json()).error, 'Method not allowed.');
+    assert.equal((await activeResponse.json()).error, 'Method not allowed.');
+    assert.equal((await deleteResponse.json()).error, 'Method not allowed.');
+  });
+
+  it('authenticates admin dataset handlers before method validation', async () => {
+    const env = { JSON_ADMIN_KEY: 'secret' };
+    const repository = {};
+
+    const adminListResponse = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=json', { method: 'PUT' }),
+      { env, repository }
+    );
+    const activeResponse = await handleAdminDatasetActiveRequest(
+      new Request('https://example.com/api/admin/datasets/dataset-1/active', { method: 'GET' }),
+      { env, id: 'dataset-1', repository }
+    );
+    const deleteResponse = await handleAdminDatasetDeleteRequest(
+      new Request('https://example.com/api/admin/datasets/dataset-1', { method: 'GET' }),
+      { env, id: 'dataset-1', repository }
+    );
+
+    assert.equal(adminListResponse.status, 401);
+    assert.equal(activeResponse.status, 401);
+    assert.equal(deleteResponse.status, 401);
+  });
+
   it('protects admin active and delete mutations and calls the repository with the route id', async () => {
     const calls = [];
     const repository = {

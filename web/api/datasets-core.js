@@ -46,13 +46,13 @@ export async function handleActiveDatasetRequest(request, { repository } = {}) {
 }
 
 export async function handleAdminDatasetsRequest(request, { env = process.env, repository } = {}) {
-  if (request.method !== 'GET' && request.method !== 'POST') {
-    return methodNotAllowedResponse();
-  }
-
   const adminError = requireAdminKey(request, env);
   if (adminError) {
     return adminError;
+  }
+
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return methodNotAllowedResponse();
   }
 
   const repo = ensureRepository(repository);
@@ -85,7 +85,7 @@ export async function handleAdminDatasetsRequest(request, { env = process.env, r
 
     const dataset = await repo.createDataset({
       description: String(payload.description ?? '').trim(),
-      metadata: payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {},
+      metadata: isPlainObject(payload.metadata) ? payload.metadata : {},
       name,
       toolType
     });
@@ -99,13 +99,13 @@ export async function handleAdminDatasetsRequest(request, { env = process.env, r
 }
 
 export async function handleAdminDatasetActiveRequest(request, { env = process.env, id, repository } = {}) {
-  if (request.method !== 'PATCH' && request.method !== 'POST') {
-    return methodNotAllowedResponse();
-  }
-
   const adminError = requireAdminKey(request, env);
   if (adminError) {
     return adminError;
+  }
+
+  if (request.method !== 'PATCH' && request.method !== 'POST') {
+    return methodNotAllowedResponse();
   }
 
   const repo = ensureRepository(repository);
@@ -122,13 +122,13 @@ export async function handleAdminDatasetActiveRequest(request, { env = process.e
 }
 
 export async function handleAdminDatasetDeleteRequest(request, { env = process.env, id, repository } = {}) {
-  if (request.method !== 'DELETE') {
-    return methodNotAllowedResponse();
-  }
-
   const adminError = requireAdminKey(request, env);
   if (adminError) {
     return adminError;
+  }
+
+  if (request.method !== 'DELETE') {
+    return methodNotAllowedResponse();
   }
 
   const repo = ensureRepository(repository);
@@ -155,6 +155,15 @@ function getToolTypeFromUrl(url) {
 function normalizeToolType(value) {
   const toolType = String(value ?? '').trim();
   return SUPPORTED_TOOL_TYPES.has(toolType) ? toolType : '';
+}
+
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function requireAdminKey(request, env) {

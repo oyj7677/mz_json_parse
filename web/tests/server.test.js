@@ -185,6 +185,17 @@ describe('translation server helpers', () => {
           toolType
         }];
       },
+      async createDataset(payload) {
+        calls.push(['create', payload]);
+        return {
+          id: 'dataset-created',
+          ...payload
+        };
+      },
+      async deleteDataset(id) {
+        calls.push(['delete', id]);
+        return { deletedCount: 1 };
+      },
       async setActiveDataset(id) {
         calls.push(['active', id]);
         return {
@@ -206,19 +217,49 @@ describe('translation server helpers', () => {
       const listResponse = await fetch(`http://127.0.0.1:${port}/api/datasets?tool=json`);
       const listBody = await listResponse.json();
 
-      const activeResponse = await fetch(`http://127.0.0.1:${port}/api/admin/datasets/dataset-1/active`, {
+      const createResponse = await fetch(`http://127.0.0.1:${port}/api/admin/datasets`, {
+        body: JSON.stringify({
+          description: ' Local JSON uploads ',
+          metadata: { source: 'server-test' },
+          name: ' Local JSON ',
+          toolType: 'json'
+        }),
+        headers: { 'x-admin-key': 'secret' },
+        method: 'POST'
+      });
+      const createBody = await createResponse.json();
+
+      const activeResponse = await fetch(`http://127.0.0.1:${port}/api/admin/datasets/dataset%20active%2042/active`, {
         headers: { 'x-admin-key': 'secret' },
         method: 'PATCH'
       });
       const activeBody = await activeResponse.json();
 
+      const deleteResponse = await fetch(`http://127.0.0.1:${port}/api/admin/datasets/dataset%20delete%2042`, {
+        headers: { 'x-admin-key': 'secret' },
+        method: 'DELETE'
+      });
+      const deleteBody = await deleteResponse.json();
+
       assert.equal(listResponse.status, 200);
       assert.equal(listBody.datasets[0].toolType, 'json');
+      assert.equal(createResponse.status, 200);
+      assert.equal(createBody.dataset.id, 'dataset-created');
+      assert.equal(createBody.dataset.name, 'Local JSON');
       assert.equal(activeResponse.status, 200);
-      assert.equal(activeBody.dataset.id, 'dataset-1');
+      assert.equal(activeBody.dataset.id, 'dataset active 42');
+      assert.equal(deleteResponse.status, 200);
+      assert.equal(deleteBody.deletedCount, 1);
       assert.deepEqual(calls, [
         ['list', 'json'],
-        ['active', 'dataset-1']
+        ['create', {
+          description: 'Local JSON uploads',
+          metadata: { source: 'server-test' },
+          name: 'Local JSON',
+          toolType: 'json'
+        }],
+        ['active', 'dataset active 42'],
+        ['delete', 'dataset delete 42']
       ]);
     } finally {
       await new Promise((resolve, reject) => {
