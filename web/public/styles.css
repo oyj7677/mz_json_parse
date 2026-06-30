@@ -1627,6 +1627,10 @@ body.resizing-explorer-column {
   grid-column: 1;
 }
 
+.admin-dataset-panel {
+  grid-column: 1;
+}
+
 .admin-upload-panel {
   grid-column: 2;
 }
@@ -1677,6 +1681,7 @@ body.resizing-explorer-column {
 }
 
 .admin-field input,
+.admin-field select,
 .admin-search-field input {
   width: 100%;
   min-width: 0;
@@ -1701,9 +1706,96 @@ body.resizing-explorer-column {
 }
 
 .admin-field input:focus,
+.admin-field select:focus,
 .admin-search-field input:focus {
   border-color: var(--blue);
   outline: 3px solid rgba(18, 104, 214, 0.18);
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.admin-tab {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-tab.is-active {
+  border-color: rgba(18, 104, 214, 0.42);
+  background: #eaf4ff;
+  color: var(--blue);
+}
+
+.admin-tab:focus-visible {
+  outline: 3px solid rgba(18, 104, 214, 0.18);
+  outline-offset: 2px;
+}
+
+.admin-dataset-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.admin-dataset-list {
+  display: flex;
+  max-height: 300px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.admin-dataset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel-soft);
+}
+
+.admin-dataset-row.is-active {
+  border-color: rgba(18, 104, 214, 0.34);
+  background: #f3f9ff;
+}
+
+.admin-dataset-row.is-selected {
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.admin-dataset-row > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-dataset-row strong,
+.admin-dataset-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-tool-upload-panel {
+  min-height: 0;
+}
+
+.admin-tool-upload-panel[hidden] {
+  display: none !important;
 }
 
 .admin-upload-grid {
@@ -1944,6 +2036,7 @@ body.resizing-explorer-column {
 
   .admin-auth-panel,
   .admin-batches-panel,
+  .admin-dataset-panel,
   .admin-upload-panel,
   .admin-records-panel,
   .admin-metric-grid {

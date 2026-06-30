@@ -642,7 +642,35 @@
           <p class="inline-status" id="adminStatus" aria-live="polite">관리자 키를 입력한 뒤 새로고침하세요.</p>
         </section>
 
-        <section class="admin-panel admin-upload-panel">
+        <section class="admin-panel admin-dataset-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Datasets</h2>
+              <p class="panel-copy">Active tool dataset list and uploads.</p>
+            </div>
+          </div>
+          <div class="admin-tabs" role="tablist" aria-label="Admin dataset tools">
+            <button class="admin-tab is-active" id="adminJsonTab" type="button" role="tab" aria-selected="true" aria-controls="adminJsonUploadPanel">JSON</button>
+            <button class="admin-tab" id="adminMappingTab" type="button" role="tab" aria-selected="false" aria-controls="adminMappingUploadPanel">Mapping Table</button>
+            <button class="admin-tab" id="adminStringResourceTab" type="button" role="tab" aria-selected="false" aria-controls="adminStringResourceUploadPanel">String Resource</button>
+          </div>
+          <div class="admin-dataset-create">
+            <label class="admin-field" for="adminDatasetNameInput">
+              <span>Dataset name</span>
+              <input id="adminDatasetNameInput" type="text" placeholder="Production AU">
+            </label>
+            <label class="admin-field" for="adminDatasetDescriptionInput">
+              <span>Description</span>
+              <input id="adminDatasetDescriptionInput" type="text" placeholder="Optional dataset note">
+            </label>
+            <button class="primary-action" id="adminCreateDatasetButton" type="button">Create dataset</button>
+          </div>
+          <div class="admin-dataset-list" id="adminDatasetList" aria-live="polite">
+            <div class="empty-state compact-empty">Load datasets after entering the admin key.</div>
+          </div>
+        </section>
+
+        <section class="admin-panel admin-upload-panel admin-tool-upload-panel" id="adminJsonUploadPanel" role="tabpanel" aria-labelledby="adminJsonTab">
           <div class="panel-header">
             <div>
               <h2>JSON 업로드</h2>
@@ -682,6 +710,40 @@
           </div>
           <button class="primary-action" id="adminImportButton" type="button" disabled>
             DB에 업로드
+          </button>
+        </section>
+
+        <section class="admin-panel admin-upload-panel admin-tool-upload-panel" id="adminMappingUploadPanel" role="tabpanel" aria-labelledby="adminMappingTab" hidden>
+          <div class="panel-header">
+            <div>
+              <h2>Mapping Table upload</h2>
+              <p class="panel-copy">Upload one XLSX workbook into the selected Mapping Table dataset.</p>
+            </div>
+          </div>
+          <div class="upload-strip">
+            <label class="file-picker" for="adminMappingFileInput">Mapping XLSX select</label>
+            <input id="adminMappingFileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+            <span>Workbook rows are normalized before DB import.</span>
+          </div>
+          <button class="primary-action" id="adminMappingUploadButton" type="button" disabled>
+            Upload Mapping
+          </button>
+        </section>
+
+        <section class="admin-panel admin-upload-panel admin-tool-upload-panel" id="adminStringResourceUploadPanel" role="tabpanel" aria-labelledby="adminStringResourceTab" hidden>
+          <div class="panel-header">
+            <div>
+              <h2>String Resource upload</h2>
+              <p class="panel-copy">Upload one or more XLSX workbooks into the selected String Resource dataset.</p>
+            </div>
+          </div>
+          <div class="upload-strip">
+            <label class="file-picker" for="adminStringResourceFileInput">String XLSX select</label>
+            <input id="adminStringResourceFileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple>
+            <span>Detected resource locales are included in the import summary.</span>
+          </div>
+          <button class="primary-action" id="adminStringResourceUploadButton" type="button" disabled>
+            Upload Strings
           </button>
         </section>
 

@@ -375,6 +375,65 @@ describe('upload-first UI structure', () => {
     assert.ok((vercel.rewrites ?? []).some((rewrite) => rewrite.source === '/admin'));
   });
 
+  it('provides integrated DB admin dataset tabs and upload flows', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+    for (const id of [
+      'adminJsonTab',
+      'adminMappingTab',
+      'adminStringResourceTab',
+      'adminDatasetNameInput',
+      'adminDatasetDescriptionInput',
+      'adminCreateDatasetButton',
+      'adminDatasetList',
+      'adminJsonUploadPanel',
+      'adminMappingUploadPanel',
+      'adminStringResourceUploadPanel',
+      'adminMappingFileInput',
+      'adminMappingUploadButton',
+      'adminStringResourceFileInput',
+      'adminStringResourceUploadButton'
+    ]) {
+      assert.match(html, new RegExp(`id="${id}"`));
+    }
+
+    for (const selector of [
+      '.admin-tabs',
+      '.admin-tab',
+      '.admin-dataset-list',
+      '.admin-dataset-row',
+      '.admin-tool-upload-panel',
+      '.admin-tool-upload-panel[hidden]'
+    ]) {
+      assert.match(css, new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{`));
+    }
+
+    for (const contract of [
+      'loadAdminDatasets',
+      'createAdminDataset',
+      'setAdminDatasetActive',
+      'uploadAdminJsonDatasetFiles',
+      'uploadAdminMappingDataset',
+      'uploadAdminStringResourceDataset',
+      'renderAdminDatasetList',
+      'setAdminTool'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
+
+    assert.match(app, /from '\.\/mapping-table-xlsx\.js'/);
+    assert.match(app, /parseMappingWorkbookFile/);
+    assert.match(app, /fetch\(`\/api\/admin\/datasets\?tool=\$\{encodeURIComponent\(tool\)\}`/);
+    assert.match(app, /fetch\('\/api\/admin\/datasets'/);
+    assert.match(app, /fetch\(`\/api\/admin\/datasets\/\$\{encodeURIComponent\(id\)\}\/active`/);
+    assert.match(app, /fetch\('\/api\/admin\/mapping-table\/import'/);
+    assert.match(app, /fetch\('\/api\/admin\/string-resources\/import'/);
+    assert.match(app, /normalizeMappingWorkbook\(workbook\)/);
+    assert.match(app, /normalizeStringResourceWorkbook\(workbook,\s*file\.name\)/);
+  });
+
   it('declares local SheetJS vendor loading for Excel parsing', async () => {
     const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
     const packageJson = await readFile(new URL('../package.json', import.meta.url), 'utf8');

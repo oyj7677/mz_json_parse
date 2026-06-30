@@ -30,6 +30,7 @@ import {
   STRING_RESOURCE_DEFAULT_QUALIFIERS,
   toggleStringResourceVisibleQualifier
 } from './string-resource-core.js';
+import { parseMappingWorkbookFile } from './mapping-table-xlsx.js';
 import { parseStringResourceWorkbookFile } from './string-resource-xlsx.js';
 import { initializeJsonEditorTool } from './json-editor-tool.js';
 import { normalizeToolRoute, pathForTool } from './routes.js';
@@ -103,6 +104,15 @@ const state = {
     selectedFiles: [],
     status: null
   },
+  adminDb: {
+    activeTool: 'json',
+    datasets: [],
+    selectedDatasetIds: {
+      json: '',
+      mapping: '',
+      stringResource: ''
+    }
+  },
   nextId: 1,
   translateFilenames: true
 };
@@ -173,16 +183,26 @@ const elements = {
   adminBatchCount: document.querySelector('#adminBatchCount'),
   adminBatchNameInput: document.querySelector('#adminBatchNameInput'),
   adminCountryRegionInput: document.querySelector('#adminCountryRegionInput'),
+  adminCreateDatasetButton: document.querySelector('#adminCreateDatasetButton'),
+  adminDatasetDescriptionInput: document.querySelector('#adminDatasetDescriptionInput'),
+  adminDatasetList: document.querySelector('#adminDatasetList'),
+  adminDatasetNameInput: document.querySelector('#adminDatasetNameInput'),
   adminDatasetSelect: document.querySelector('#adminDatasetSelect'),
   adminDescriptionInput: document.querySelector('#adminDescriptionInput'),
   adminHelpButton: document.querySelector('#adminHelpButton'),
   adminImportButton: document.querySelector('#adminImportButton'),
   adminImportStatus: document.querySelector('#adminImportStatus'),
+  adminJsonTab: document.querySelector('#adminJsonTab'),
+  adminJsonUploadPanel: document.querySelector('#adminJsonUploadPanel'),
   adminJsonFileInput: document.querySelector('#adminJsonFileInput'),
   adminKeyInput: document.querySelector('#adminKeyInput'),
   adminAddLanguageButton: document.querySelector('#adminAddLanguageButton'),
   adminLanguageInput: document.querySelector('#adminLanguageInput'),
   adminLanguageOptions: document.querySelector('#adminLanguageOptions'),
+  adminMappingFileInput: document.querySelector('#adminMappingFileInput'),
+  adminMappingTab: document.querySelector('#adminMappingTab'),
+  adminMappingUploadButton: document.querySelector('#adminMappingUploadButton'),
+  adminMappingUploadPanel: document.querySelector('#adminMappingUploadPanel'),
   adminRecentBatches: document.querySelector('#adminRecentBatches'),
   adminRecordCount: document.querySelector('#adminRecordCount'),
   adminRecordSearchInput: document.querySelector('#adminRecordSearchInput'),
@@ -190,6 +210,10 @@ const elements = {
   adminRefreshButton: document.querySelector('#adminRefreshButton'),
   adminSelectedFileCount: document.querySelector('#adminSelectedFileCount'),
   adminStatus: document.querySelector('#adminStatus'),
+  adminStringResourceFileInput: document.querySelector('#adminStringResourceFileInput'),
+  adminStringResourceTab: document.querySelector('#adminStringResourceTab'),
+  adminStringResourceUploadButton: document.querySelector('#adminStringResourceUploadButton'),
+  adminStringResourceUploadPanel: document.querySelector('#adminStringResourceUploadPanel'),
   adminSummary: document.querySelector('#adminSummary'),
   backToHubButton: document.querySelector('#backToHubButton'),
   backToHubFromAdminButton: document.querySelector('#backToHubFromAdminButton'),
@@ -382,17 +406,51 @@ elements.adminJsonFileInput.addEventListener('change', () => {
   renderAdminUploadState();
 });
 
+elements.adminJsonTab.addEventListener('click', () => {
+  void setAdminTool('json');
+});
+
+elements.adminMappingTab.addEventListener('click', () => {
+  void setAdminTool('mapping');
+});
+
+elements.adminStringResourceTab.addEventListener('click', () => {
+  void setAdminTool('stringResource');
+});
+
+elements.adminCreateDatasetButton.addEventListener('click', () => {
+  void createAdminDataset();
+});
+
 elements.adminRefreshButton.addEventListener('click', () => {
   void refreshAdminDashboard();
 });
 
 elements.adminImportButton.addEventListener('click', () => {
-  void importAdminJsonFiles();
+  void uploadAdminJsonDatasetFiles();
 });
 
 elements.adminDatasetSelect.addEventListener('change', (event) => {
   state.admin.selectedDatasetId = event.target.value;
+  state.adminDb.selectedDatasetIds.json = event.target.value;
   renderAdminUploadState();
+  renderAdminDatasetList();
+});
+
+elements.adminMappingFileInput.addEventListener('change', () => {
+  renderAdminUploadState();
+});
+
+elements.adminMappingUploadButton.addEventListener('click', () => {
+  void uploadAdminMappingDataset();
+});
+
+elements.adminStringResourceFileInput.addEventListener('change', () => {
+  renderAdminUploadState();
+});
+
+elements.adminStringResourceUploadButton.addEventListener('click', () => {
+  void uploadAdminStringResourceDataset();
 });
 
 elements.adminCountryRegionInput.addEventListener('input', () => {
@@ -850,6 +908,113 @@ async function refreshAdminDashboard() {
   }
 }
 
+async function setAdminTool(tool) {
+  state.adminDb.activeTool = normalizeAdminTool(tool);
+  renderAdminDashboard();
+  if (!adminKey()) {
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+  try {
+    await loadAdminDatasets(state.adminDb.activeTool);
+    setAdminStatus('Dataset list loaded.');
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function createAdminDataset() {
+  if (!adminKey()) {
+    setAdminStatus('愿由ъ옄 ?ㅻ? ?낅젰?섏꽭??');
+    return;
+  }
+
+  const name = elements.adminDatasetNameInput.value.trim();
+  if (!name) {
+    setAdminStatus('Dataset name is required.');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+
+  try {
+    const response = await fetch('/api/admin/datasets', {
+      body: JSON.stringify({
+        description: elements.adminDatasetDescriptionInput.value.trim(),
+        name,
+        tool: state.adminDb.activeTool
+      }),
+      headers: adminHeaders({ json: true }),
+      method: 'POST'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `Dataset create failed (${response.status})`);
+    }
+
+    elements.adminDatasetNameInput.value = '';
+    elements.adminDatasetDescriptionInput.value = '';
+    const createdDataset = body.dataset ?? body;
+    const createdDatasetId = String(createdDataset?.id ?? '').trim();
+    if (createdDatasetId) {
+      state.adminDb.selectedDatasetIds[state.adminDb.activeTool] = createdDatasetId;
+      if (state.adminDb.activeTool === 'json') {
+        state.admin.selectedDatasetId = createdDatasetId;
+      }
+    }
+    await loadAdminDatasets(state.adminDb.activeTool);
+    setAdminStatus('Dataset created.');
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function setAdminDatasetActive(id) {
+  if (!adminKey()) {
+    setAdminStatus('愿由ъ옄 ?ㅻ? ?낅젰?섏꽭??');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+
+  try {
+    const response = await fetch(`/api/admin/datasets/${encodeURIComponent(id)}/active`, {
+      headers: adminHeaders({ json: true }),
+      method: 'PATCH'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `Dataset activate failed (${response.status})`);
+    }
+
+    state.adminDb.selectedDatasetIds[state.adminDb.activeTool] = String(id ?? '').trim();
+    if (state.adminDb.activeTool === 'json') {
+      state.admin.selectedDatasetId = String(id ?? '').trim();
+    }
+    await loadAdminDatasets(state.adminDb.activeTool);
+    setAdminStatus('Dataset activated.');
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function uploadAdminJsonDatasetFiles() {
+  await importAdminJsonFiles();
+}
+
 async function importAdminJsonFiles() {
   if (!adminKey()) {
     setAdminImportStatus('관리자 키를 입력하세요.');
@@ -915,21 +1080,161 @@ async function importAdminJsonFiles() {
   }
 }
 
-async function loadAdminDatasets() {
-  const response = await fetch('/api/admin/datasets?tool=json', {
-    headers: adminHeaders(),
-    method: 'GET'
-  });
+async function uploadAdminMappingDataset() {
+  if (!adminKey()) {
+    setAdminImportStatus('Admin key is required.');
+    return;
+  }
+  const datasetId = adminDbDatasetId();
+  if (!datasetId) {
+    setAdminImportStatus('Dataset is required.');
+    return;
+  }
+  const file = elements.adminMappingFileInput.files?.[0];
+  if (!file) {
+    setAdminImportStatus('Mapping workbook is required.');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+  setAdminImportStatus('Parsing mapping workbook.');
+
+  try {
+    const workbook = await parseMappingWorkbookFile(file);
+    const rows = normalizeMappingWorkbook(workbook).map((row) => ({
+      ...row,
+      sourceFilename: file.name
+    }));
+    if (rows.length === 0) {
+      throw new Error('Mapping workbook has no importable rows.');
+    }
+
+    const response = await fetch('/api/admin/mapping-table/import', {
+      body: JSON.stringify({
+        datasetId,
+        rows,
+        summary: {
+          source: file.name,
+          rowCount: rows.length,
+          sheetCount: workbook.sheets.length
+        }
+      }),
+      headers: adminHeaders({ json: true }),
+      method: 'POST'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `Mapping import failed (${response.status})`);
+    }
+
+    elements.adminMappingFileInput.value = '';
+    setAdminImportStatus(`Mapping import complete: ${body.insertedCount ?? 0} rows.`);
+  } catch (error) {
+    setAdminImportStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function uploadAdminStringResourceDataset() {
+  if (!adminKey()) {
+    setAdminImportStatus('Admin key is required.');
+    return;
+  }
+  const datasetId = adminDbDatasetId();
+  if (!datasetId) {
+    setAdminImportStatus('Dataset is required.');
+    return;
+  }
+  const files = Array.from(elements.adminStringResourceFileInput.files ?? []);
+  if (files.length === 0) {
+    setAdminImportStatus('String Resource workbook is required.');
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+  setAdminImportStatus(`Parsing ${files.length} string resource workbook(s).`);
+
+  try {
+    const rows = [];
+    const sheetSummaries = [];
+    for (const file of files) {
+      const workbook = await parseStringResourceWorkbookFile(file);
+      const normalized = normalizeStringResourceWorkbook(workbook, file.name);
+      rows.push(...normalized.rows.map((row) => ({
+        ...row,
+        sourceFilename: file.name
+      })));
+      sheetSummaries.push(...normalized.sheetSummaries.map((summary) => ({
+        ...summary,
+        fileName: file.name
+      })));
+    }
+    if (rows.length === 0) {
+      throw new Error('String Resource workbook has no importable rows.');
+    }
+
+    const qualifiers = resolveStringResourceQualifiers(rows);
+    const response = await fetch('/api/admin/string-resources/import', {
+      body: JSON.stringify({
+        datasetId,
+        rows,
+        summary: {
+          source: files.map((file) => file.name).join(', '),
+          fileCount: files.length,
+          rowCount: rows.length,
+          locales: qualifiers,
+          qualifiers,
+          sheets: sheetSummaries
+        }
+      }),
+      headers: adminHeaders({ json: true }),
+      method: 'POST'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `String Resource import failed (${response.status})`);
+    }
+
+    elements.adminStringResourceFileInput.value = '';
+    setAdminImportStatus(`String Resource import complete: ${body.insertedCount ?? 0} rows.`);
+  } catch (error) {
+    setAdminImportStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
+async function loadAdminDatasets(tool = state.adminDb.activeTool) {
+  const normalizedTool = normalizeAdminTool(tool);
+  const response = normalizedTool === 'json'
+    ? await fetch('/api/admin/datasets?tool=json', {
+      headers: adminHeaders(),
+      method: 'GET'
+    })
+    : await fetch(`/api/admin/datasets?tool=${encodeURIComponent(tool)}`, {
+      headers: adminHeaders(),
+      method: 'GET'
+    });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(body.error ?? `Dataset 조회 실패 (${response.status})`);
   }
 
-  state.admin.datasets = Array.isArray(body.datasets) ? body.datasets : [];
-  state.admin.selectedDatasetId = resolveActiveAdminDatasetId(
-    state.admin.datasets,
-    state.admin.selectedDatasetId
+  const datasets = Array.isArray(body.datasets) ? body.datasets : [];
+  state.adminDb.datasets = datasets;
+  state.adminDb.selectedDatasetIds[normalizedTool] = resolveActiveAdminDatasetId(
+    datasets,
+    state.adminDb.selectedDatasetIds[normalizedTool]
   );
+  if (normalizedTool === 'json') {
+    state.admin.datasets = datasets;
+    state.admin.selectedDatasetId = state.adminDb.selectedDatasetIds.json;
+  }
 }
 
 async function loadAdminStatus() {
@@ -1033,6 +1338,7 @@ function renderAdminDashboard() {
   elements.adminBatchCount.textContent = batchCount.toLocaleString();
   elements.adminRefreshButton.disabled = state.admin.isLoading;
   renderAdminDatasetOptions();
+  renderAdminDatasetList();
   renderAdminUploadState();
   renderAdminRecords();
   renderAdminBatches();
@@ -1041,9 +1347,23 @@ function renderAdminDashboard() {
 function renderAdminUploadState() {
   const fileCount = state.admin.selectedFiles.length;
   elements.adminSelectedFileCount.textContent = fileCount.toLocaleString();
+  renderAdminToolTabs();
   elements.adminDatasetSelect.value = state.admin.selectedDatasetId;
   elements.adminDatasetSelect.disabled = state.admin.isLoading || !adminKey() || state.admin.datasets.length === 0;
   elements.adminCountryRegionInput.disabled = state.admin.isLoading;
+  elements.adminCreateDatasetButton.disabled = state.admin.isLoading || !adminKey();
+  elements.adminDatasetNameInput.disabled = state.admin.isLoading;
+  elements.adminDatasetDescriptionInput.disabled = state.admin.isLoading;
+  elements.adminMappingUploadButton.disabled = state.admin.isLoading
+    || !adminKey()
+    || state.adminDb.activeTool !== 'mapping'
+    || !adminDbDatasetId()
+    || !elements.adminMappingFileInput.files?.[0];
+  elements.adminStringResourceUploadButton.disabled = state.admin.isLoading
+    || !adminKey()
+    || state.adminDb.activeTool !== 'stringResource'
+    || !adminDbDatasetId()
+    || (elements.adminStringResourceFileInput.files?.length ?? 0) === 0;
   elements.adminImportButton.disabled = state.admin.isLoading
     || !adminKey()
     || fileCount === 0
@@ -1052,6 +1372,22 @@ function renderAdminUploadState() {
     || !adminCountryRegion();
   if (fileCount > 0) {
     elements.adminImportStatus.textContent = `선택된 파일 ${fileCount.toLocaleString()}개`;
+  }
+}
+
+function renderAdminToolTabs() {
+  const tool = state.adminDb.activeTool;
+  const tabEntries = [
+    ['json', elements.adminJsonTab, elements.adminJsonUploadPanel],
+    ['mapping', elements.adminMappingTab, elements.adminMappingUploadPanel],
+    ['stringResource', elements.adminStringResourceTab, elements.adminStringResourceUploadPanel]
+  ];
+
+  for (const [entryTool, tab, panel] of tabEntries) {
+    const isActive = entryTool === tool;
+    tab.classList.toggle('is-active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+    panel.hidden = !isActive;
   }
 }
 
@@ -1076,6 +1412,51 @@ function renderAdminDatasetOptions() {
     fragment.append(option);
   }
   elements.adminDatasetSelect.replaceChildren(fragment);
+}
+
+function renderAdminDatasetList() {
+  const fragment = document.createDocumentFragment();
+  const datasets = state.adminDb.activeTool === 'json' ? state.admin.datasets : state.adminDb.datasets;
+  const selectedDatasetId = adminDbDatasetId();
+
+  if (datasets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state compact-empty';
+    empty.textContent = adminKey() ? 'No datasets for this tool.' : 'Load datasets after entering the admin key.';
+    fragment.append(empty);
+  }
+
+  for (const dataset of datasets) {
+    const row = document.createElement('article');
+    row.className = 'admin-dataset-row';
+    row.classList.toggle('is-selected', String(dataset.id) === selectedDatasetId);
+    row.classList.toggle('is-active', Boolean(dataset.isActive));
+
+    const text = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = dataset.name || 'Untitled dataset';
+    const meta = document.createElement('span');
+    meta.className = 'item-meta';
+    meta.textContent = [
+      dataset.isActive ? 'active' : 'inactive',
+      String(dataset.description ?? '').trim()
+    ].filter(Boolean).join(' | ');
+    text.append(title, meta);
+
+    const action = document.createElement('button');
+    action.className = 'ghost-button';
+    action.type = 'button';
+    action.textContent = dataset.isActive ? 'Selected' : 'Activate';
+    action.disabled = state.admin.isLoading || !adminKey() || dataset.isActive;
+    action.addEventListener('click', () => {
+      void setAdminDatasetActive(dataset.id);
+    });
+
+    row.append(text, action);
+    fragment.append(row);
+  }
+
+  elements.adminDatasetList.replaceChildren(fragment);
 }
 
 function renderAdminRecords() {
@@ -1219,6 +1600,22 @@ function uniqueAdminLanguageOptions(values) {
 
 function normalizeAdminLanguage(value) {
   return String(value ?? '').trim().slice(0, 64);
+}
+
+function normalizeAdminTool(value) {
+  const tool = String(value ?? '').trim();
+  return ['json', 'mapping', 'stringResource'].includes(tool) ? tool : 'json';
+}
+
+function adminDbDatasetId(tool = state.adminDb.activeTool) {
+  const normalizedTool = normalizeAdminTool(tool);
+  const datasets = normalizedTool === 'json' ? state.admin.datasets : state.adminDb.datasets;
+  return resolveActiveAdminDatasetId(
+    datasets,
+    normalizedTool === 'json'
+      ? state.admin.selectedDatasetId || state.adminDb.selectedDatasetIds.json
+      : state.adminDb.selectedDatasetIds[normalizedTool]
+  );
 }
 
 function adminKey() {
