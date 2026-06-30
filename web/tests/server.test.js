@@ -9,6 +9,8 @@ import {
 } from '../api/translate-filename.js';
 import { createAppServer } from '../server.js';
 
+const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
+
 describe('translation server helpers', () => {
   it('builds a keyless Google Translate URL for English filename translation', () => {
     const url = buildGoogleTranslateUrl('안녕하세요 세계');
@@ -117,7 +119,7 @@ describe('translation server helpers', () => {
   it('serves local JSON records API routes with injected repository dependencies', async () => {
     const repository = {
       async importRecords(payload) {
-        assert.equal(payload.datasetId, 'dataset-1');
+        assert.equal(payload.datasetId, JSON_DATASET_ID);
         assert.equal(payload.countryRegion, 'AU');
         assert.equal(payload.records.length, 1);
         assert.equal(payload.records[0].countryRegion, 'AU');
@@ -138,6 +140,10 @@ describe('translation server helpers', () => {
           }],
           total: 1
         };
+      },
+      async listCountries(datasetId) {
+        assert.equal(datasetId, JSON_DATASET_ID);
+        return [{ countryRegion: 'AU', count: 1 }];
       }
     };
     const server = createAppServer({
@@ -154,18 +160,22 @@ describe('translation server helpers', () => {
       const importResponse = await fetch(`http://127.0.0.1:${port}/api/admin/json-records/import`, {
         body: JSON.stringify({
           countryRegion: 'AU',
-          datasetId: 'dataset-1',
+          datasetId: JSON_DATASET_ID,
           files: [{ filename: 'weather.json', text: '{"recognitionText":"Weather"}' }]
         }),
         headers: { 'x-admin-key': 'secret' },
         method: 'POST'
       });
       const importBody = await importResponse.json();
+      const countriesResponse = await fetch(`http://127.0.0.1:${port}/api/json-countries?datasetId=${JSON_DATASET_ID}`);
+      const countriesBody = await countriesResponse.json();
 
       assert.equal(searchResponse.status, 200);
       assert.equal(searchBody.records[0].recognitionText, 'Weather');
       assert.equal(importResponse.status, 200);
       assert.equal(importBody.insertedCount, 1);
+      assert.equal(countriesResponse.status, 200);
+      assert.deepEqual(countriesBody.countries, [{ countryRegion: 'AU', count: 1 }]);
     } finally {
       await new Promise((resolve, reject) => {
         server.close((error) => {

@@ -1,6 +1,113 @@
 let cachedSql;
 let cachedDatabaseUrl = '';
 
+const IMPORT_JSON_RECORDS_QUERY = `
+  with live_dataset as (
+    select id
+    from datasets
+    where id = $1::uuid
+      and tool_type = 'json'
+      and deleted_at is null
+    for update
+  ),
+  input_records as (
+    select *
+    from jsonb_to_recordset($2::jsonb) as record(
+      country_region text,
+      source_filename text,
+      recognition_text text,
+      language text,
+      content_type text,
+      table_version text,
+      slot_summary text,
+      raw_json jsonb,
+      raw_text text,
+      content_hash text,
+      value_kind text
+    )
+  ),
+  existing_record_counts as (
+    select count(*)::int as count
+    from json_records
+    where dataset_id = $1::uuid
+      and deleted_at is null
+  ),
+  inserted_records as (
+    insert into json_records (
+      dataset_id,
+      country_region,
+      source_filename,
+      recognition_text,
+      language,
+      content_type,
+      table_version,
+      slot_summary,
+      raw_json,
+      raw_text,
+      content_hash,
+      value_kind
+    )
+    select
+      live_dataset.id,
+      input_records.country_region,
+      input_records.source_filename,
+      input_records.recognition_text,
+      input_records.language,
+      input_records.content_type,
+      input_records.table_version,
+      input_records.slot_summary,
+      input_records.raw_json,
+      input_records.raw_text,
+      input_records.content_hash,
+      input_records.value_kind
+    from live_dataset
+    cross join input_records
+    on conflict do nothing
+    returning id
+  ),
+  import_counts as (
+    select
+      (select count(*)::int from input_records) as input_count,
+      (select count(*)::int from inserted_records) as inserted_count
+  ),
+  updated_dataset as (
+    update datasets
+    set record_count = (
+          select existing_record_counts.count + import_counts.inserted_count
+          from existing_record_counts, import_counts
+        ),
+        error_count = (
+          select import_counts.input_count - import_counts.inserted_count
+          from import_counts
+        )
+    where id = $1::uuid
+      and tool_type = 'json'
+      and deleted_at is null
+    returning id, record_count, error_count
+  )
+  select
+    exists(select 1 from live_dataset) as dataset_found,
+    coalesce((select inserted_count from import_counts), 0)::int as inserted_count,
+    coalesce((select input_count - inserted_count from import_counts), 0)::int as skipped_count,
+    coalesce((select record_count from updated_dataset), 0)::int as record_count
+`;
+
+const COUNT_JSON_DATASET_RECORDS_QUERY = `
+  select count(*)::int as count
+  from json_records
+  where dataset_id = $1::uuid
+    and deleted_at is null
+`;
+
+const UPDATE_JSON_DATASET_RECORD_COUNT_QUERY = `
+  update datasets
+  set record_count = $2
+  where id = $1::uuid
+    and tool_type = 'json'
+    and deleted_at is null
+  returning id, record_count
+`;
+
 export function resolveDatabaseUrl(env = process.env) {
   return String(env?.DATABASE_URL || env?.POSTGRES_URL || '').trim();
 }
@@ -28,7 +135,7 @@ export function createJsonRecordsRepository(sql) {
         set deleted_at = now()
         where batch_id = $1
           and deleted_at is null
-        returning id
+        returning id, dataset_id
       `, [id]);
       await sql.query(`
         update json_import_batches
@@ -36,6 +143,7 @@ export function createJsonRecordsRepository(sql) {
         where id = $1
           and deleted_at is null
       `, [id]);
+      await refreshJsonDatasetCounts(sql, collectDatasetIds(rows));
 
       return { deletedCount: rows.length };
     },
@@ -46,8 +154,9 @@ export function createJsonRecordsRepository(sql) {
         set deleted_at = now()
         where id = $1
           and deleted_at is null
-        returning id
+        returning id, dataset_id
       `, [id]);
+      await refreshJsonDatasetCounts(sql, collectDatasetIds(rows));
 
       return { deletedCount: rows.length };
     },
@@ -117,76 +226,27 @@ export function createJsonRecordsRepository(sql) {
     },
 
     async importRecords({ countryRegion = '', datasetId = '', records = [] }) {
-      let insertedCount = 0;
-      let skippedCount = 0;
-
-      for (const record of records) {
-        const recordCountryRegion = String(record.countryRegion ?? countryRegion ?? '').trim();
-        const insertedRows = await sql.query(`
-          insert into json_records (
-            dataset_id,
-            country_region,
-            source_filename,
-            recognition_text,
-            language,
-            content_type,
-            table_version,
-            slot_summary,
-            raw_json,
-            raw_text,
-            content_hash,
-            value_kind
-          )
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
-          on conflict do nothing
-          returning id
-        `, [
-          datasetId,
-          recordCountryRegion,
-          record.sourceFilename,
-          record.recognitionText,
-          record.language,
-          record.contentType,
-          record.tableVersion,
-          record.slotSummary,
-          record.rawJson === null ? null : JSON.stringify(record.rawJson),
-          record.rawText,
-          record.contentHash,
-          record.valueKind
-        ]);
-
-        if (insertedRows.length > 0) {
-          insertedCount += 1;
-        } else {
-          skippedCount += 1;
-        }
+      if (typeof sql.transaction !== 'function') {
+        throw new Error('importRecords requires a transaction-capable SQL client.');
       }
 
-      const countRows = await sql.query(`
-        select count(*)::int as count
-        from json_records
-        where dataset_id = $1::uuid
-          and deleted_at is null
-      `, [datasetId]);
-      const recordCount = Number(countRows[0]?.count ?? insertedCount);
-
-      await sql.query(`
-        update datasets
-        set record_count = $1,
-            error_count = $2
-        where id = $3
-          and deleted_at is null
-      `, [
-        recordCount,
-        skippedCount,
-        datasetId
+      const importRowsByQuery = await sql.transaction((tx) => [
+        tx.query(IMPORT_JSON_RECORDS_QUERY, [
+          datasetId,
+          JSON.stringify(records.map((record) => toImportRecord(record, countryRegion)))
+        ])
       ]);
+      const importResult = importRowsByQuery[0]?.[0];
+
+      if (!importResult?.dataset_found) {
+        throw jsonDatasetNotFoundError();
+      }
 
       return {
         countryRegion,
         datasetId,
-        insertedCount,
-        skippedCount
+        insertedCount: Number(importResult.inserted_count ?? 0),
+        skippedCount: Number(importResult.skipped_count ?? 0)
       };
     },
 
@@ -259,4 +319,43 @@ export function createJsonRecordsRepository(sql) {
       }));
     }
   };
+}
+
+function collectDatasetIds(rows = []) {
+  return [...new Set(
+    rows
+      .map((row) => row?.dataset_id ?? row?.datasetId)
+      .filter(Boolean)
+      .map(String)
+  )];
+}
+
+async function refreshJsonDatasetCounts(sql, datasetIds = []) {
+  for (const datasetId of datasetIds) {
+    const countRows = await sql.query(COUNT_JSON_DATASET_RECORDS_QUERY, [datasetId]);
+    const recordCount = Number(countRows[0]?.count ?? 0);
+    await sql.query(UPDATE_JSON_DATASET_RECORD_COUNT_QUERY, [datasetId, recordCount]);
+  }
+}
+
+function toImportRecord(record = {}, countryRegion = '') {
+  return {
+    content_hash: String(record.contentHash ?? ''),
+    content_type: String(record.contentType ?? ''),
+    country_region: String(record.countryRegion ?? countryRegion ?? '').trim(),
+    language: String(record.language ?? ''),
+    raw_json: record.rawJson ?? null,
+    raw_text: String(record.rawText ?? ''),
+    recognition_text: String(record.recognitionText ?? ''),
+    slot_summary: String(record.slotSummary ?? ''),
+    source_filename: String(record.sourceFilename ?? ''),
+    table_version: String(record.tableVersion ?? ''),
+    value_kind: String(record.valueKind ?? 'json')
+  };
+}
+
+function jsonDatasetNotFoundError() {
+  const error = new Error('JSON dataset not found.');
+  error.status = 404;
+  return error;
 }

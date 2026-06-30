@@ -7,6 +7,7 @@ import {
 
 const MAX_IMPORT_FILES = 500;
 const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function buildJsonRecordFromUpload({ countryRegion = '', filename = '', language = '', text = '' } = {}) {
   const sourceFilename = sanitizeSourceFilename(filename);
@@ -57,6 +58,7 @@ export function normalizeJsonImportPayload(payload = {}) {
   if (!datasetId) {
     throw httpError(400, 'datasetId is required.');
   }
+  assertValidDatasetId(datasetId);
   if (!countryRegion) {
     throw httpError(400, 'countryRegion is required.');
   }
@@ -87,19 +89,23 @@ export async function handleJsonRecordsRequest(request, { repository } = {}) {
   if (request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = await ensureRepository(repository);
-  if (repo instanceof Response) {
-    return repo;
-  }
 
   const url = new URL(request.url);
   const datasetId = String(url.searchParams.get('datasetId') ?? '').trim();
+  if (datasetId && !isUuidLike(datasetId)) {
+    return jsonResponse({ error: 'datasetId must be a valid UUID.' }, 400);
+  }
   const countryRegion = sanitizeCountryRegion(
     url.searchParams.get('country') ?? url.searchParams.get('countryRegion')
   );
   const query = url.searchParams.get('q') ?? '';
   const limit = clampInteger(url.searchParams.get('limit'), 1, 200, 50);
   const offset = clampInteger(url.searchParams.get('offset'), 0, 100000, 0);
+  const repo = await ensureRepository(repository);
+  if (repo instanceof Response) {
+    return repo;
+  }
+
   const result = await repo.searchRecords({ countryRegion, datasetId, limit, offset, query });
 
   return jsonResponse({
@@ -112,14 +118,18 @@ export async function handleJsonCountriesRequest(request, { repository } = {}) {
   if (request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = await ensureRepository(repository);
-  if (repo instanceof Response) {
-    return repo;
-  }
 
   const datasetId = String(new URL(request.url).searchParams.get('datasetId') ?? '').trim();
   if (!datasetId) {
     return jsonResponse({ error: 'datasetId is required.' }, 400);
+  }
+  if (!isUuidLike(datasetId)) {
+    return jsonResponse({ error: 'datasetId must be a valid UUID.' }, 400);
+  }
+
+  const repo = await ensureRepository(repository);
+  if (repo instanceof Response) {
+    return repo;
   }
 
   return jsonResponse({
@@ -172,13 +182,13 @@ export async function handleAdminImportRequest(request, { env = process.env, rep
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = await ensureRepository(repository);
-  if (repo instanceof Response) {
-    return repo;
-  }
 
   try {
     const payload = normalizeJsonImportPayload(await readRequestJson(request));
+    const repo = await ensureRepository(repository);
+    if (repo instanceof Response) {
+      return repo;
+    }
     return jsonResponse(await repo.importRecords(payload));
   } catch (error) {
     return jsonResponse({
@@ -269,6 +279,16 @@ export function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+function assertValidDatasetId(datasetId) {
+  if (!isUuidLike(datasetId)) {
+    throw httpError(400, 'datasetId must be a valid UUID.');
+  }
+}
+
+function isUuidLike(value) {
+  return UUID_PATTERN.test(String(value ?? '').trim());
 }
 
 export function jsonResponse(payload, status = 200) {

@@ -14,6 +14,8 @@ import {
   handleJsonRecordsRequest
 } from '../api/json-records-core.js';
 
+const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
+
 describe('JSON records API handlers', () => {
   it('serves public search results without an admin key', async () => {
     const repository = {
@@ -138,7 +140,7 @@ describe('JSON records API handlers', () => {
   it('imports JSON files when the admin key is valid', async () => {
     const repository = {
       async importRecords(payload) {
-        assert.equal(payload.datasetId, 'dataset-1');
+        assert.equal(payload.datasetId, JSON_DATASET_ID);
         assert.equal(payload.countryRegion, 'AU');
         assert.equal(payload.records.length, 1);
         assert.equal(payload.records[0].countryRegion, 'AU');
@@ -155,7 +157,7 @@ describe('JSON records API handlers', () => {
       body: JSON.stringify({
         batchName: 'June logs',
         countryRegion: 'AU',
-        datasetId: 'dataset-1',
+        datasetId: JSON_DATASET_ID,
         files: [{ filename: 'a.json', text: '{"recognitionText":"A"}' }]
       }),
       headers: { 'x-admin-key': 'secret' },
@@ -167,9 +169,37 @@ describe('JSON records API handlers', () => {
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(body.datasetId, 'dataset-1');
+    assert.equal(body.datasetId, JSON_DATASET_ID);
     assert.equal(body.countryRegion, 'AU');
     assert.equal(body.insertedCount, 1);
+  });
+
+  it('rejects invalid admin import dataset ids before loading the repository', async () => {
+    let repositoryLoads = 0;
+    const response = await handleAdminImportRequest(new Request('https://example.com/api/admin/json-records/import', {
+      body: JSON.stringify({
+        countryRegion: 'AU',
+        datasetId: 'not-a-uuid',
+        files: [{ filename: 'a.json', text: '{"recognitionText":"A"}' }]
+      }),
+      headers: { 'x-admin-key': 'secret' },
+      method: 'POST'
+    }), {
+      env: { JSON_ADMIN_KEY: 'secret' },
+      repository: async () => {
+        repositoryLoads += 1;
+        return {
+          async importRecords() {
+            throw new Error('should not import with an invalid datasetId');
+          }
+        };
+      }
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /valid UUID/);
+    assert.equal(repositoryLoads, 0);
   });
 
   it('requires countryRegion for JSON admin imports', async () => {
@@ -180,7 +210,7 @@ describe('JSON records API handlers', () => {
     };
     const response = await handleAdminImportRequest(new Request('https://example.com/api/admin/json-records/import', {
       body: JSON.stringify({
-        datasetId: 'dataset-1',
+        datasetId: JSON_DATASET_ID,
         files: [{ filename: 'a.json', text: '{"recognitionText":"A"}' }]
       }),
       headers: { 'x-admin-key': 'secret' },
@@ -198,7 +228,7 @@ describe('JSON records API handlers', () => {
   it('imports JSON files into a dataset country', async () => {
     const repository = {
       async importRecords(payload) {
-        assert.equal(payload.datasetId, 'dataset-1');
+        assert.equal(payload.datasetId, JSON_DATASET_ID);
         assert.equal(payload.countryRegion, 'AU');
         assert.equal(payload.records.length, 1);
         assert.equal(payload.records[0].countryRegion, 'AU');
@@ -214,7 +244,7 @@ describe('JSON records API handlers', () => {
     const response = await handleAdminImportRequest(new Request('https://example.com/api/admin/json-records/import', {
       body: JSON.stringify({
         countryRegion: 'AU',
-        datasetId: 'dataset-1',
+        datasetId: JSON_DATASET_ID,
         files: [{ filename: 'a.json', text: '{"recognitionText":"A"}' }]
       }),
       headers: { 'x-admin-key': 'secret' },
@@ -226,7 +256,7 @@ describe('JSON records API handlers', () => {
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(body.datasetId, 'dataset-1');
+    assert.equal(body.datasetId, JSON_DATASET_ID);
     assert.equal(body.countryRegion, 'AU');
     assert.equal(body.insertedCount, 1);
   });
@@ -234,7 +264,7 @@ describe('JSON records API handlers', () => {
   it('passes dataset and country filters to public search', async () => {
     const repository = {
       async searchRecords(params) {
-        assert.equal(params.datasetId, 'dataset-1');
+        assert.equal(params.datasetId, JSON_DATASET_ID);
         assert.equal(params.countryRegion, 'AU');
         assert.equal(params.query, 'weather');
         return {
@@ -245,13 +275,35 @@ describe('JSON records API handlers', () => {
     };
 
     const response = await handleJsonRecordsRequest(
-      new Request('https://example.com/api/json-records?datasetId=dataset-1&country=AU&q=weather'),
+      new Request(`https://example.com/api/json-records?datasetId=${JSON_DATASET_ID}&country=AU&q=weather`),
       { repository }
     );
     const body = await response.json();
 
     assert.equal(response.status, 200);
     assert.equal(body.total, 0);
+  });
+
+  it('rejects invalid public search dataset ids before loading the repository', async () => {
+    let repositoryLoads = 0;
+    const response = await handleJsonRecordsRequest(
+      new Request('https://example.com/api/json-records?datasetId=not-a-uuid&q=weather'),
+      {
+        repository: async () => {
+          repositoryLoads += 1;
+          return {
+            async searchRecords() {
+              throw new Error('should not search with an invalid datasetId');
+            }
+          };
+        }
+      }
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /valid UUID/);
+    assert.equal(repositoryLoads, 0);
   });
 
   it('lists JSON countries for a dataset', async () => {
@@ -261,26 +313,48 @@ describe('JSON records API handlers', () => {
     ];
     const repository = {
       async listCountries(datasetId) {
-        assert.equal(datasetId, 'dataset-1');
+        assert.equal(datasetId, JSON_DATASET_ID);
         return countries;
       }
     };
 
-    const missingDatasetResponse = await handleJsonCountriesRequest(
-      new Request('https://example.com/api/json-countries'),
-      { repository }
-    );
-    const missingDatasetBody = await missingDatasetResponse.json();
     const response = await handleJsonCountriesRequest(
-      new Request('https://example.com/api/json-countries?datasetId=dataset-1'),
+      new Request(`https://example.com/api/json-countries?datasetId=${JSON_DATASET_ID}`),
       { repository }
     );
     const body = await response.json();
 
-    assert.equal(missingDatasetResponse.status, 400);
-    assert.match(missingDatasetBody.error, /datasetId/);
     assert.equal(response.status, 200);
     assert.deepEqual(body.countries, countries);
+  });
+
+  it('rejects missing and invalid countries dataset ids before loading the repository', async () => {
+    let repositoryLoads = 0;
+    const getRepository = async () => {
+      repositoryLoads += 1;
+      return {
+        async listCountries() {
+          throw new Error('should not list countries without a valid datasetId');
+        }
+      };
+    };
+
+    const missingDatasetResponse = await handleJsonCountriesRequest(
+      new Request('https://example.com/api/json-countries'),
+      { repository: getRepository }
+    );
+    const missingDatasetBody = await missingDatasetResponse.json();
+    const invalidDatasetResponse = await handleJsonCountriesRequest(
+      new Request('https://example.com/api/json-countries?datasetId=not-a-uuid'),
+      { repository: getRepository }
+    );
+    const invalidDatasetBody = await invalidDatasetResponse.json();
+
+    assert.equal(missingDatasetResponse.status, 400);
+    assert.match(missingDatasetBody.error, /datasetId/);
+    assert.equal(invalidDatasetResponse.status, 400);
+    assert.match(invalidDatasetBody.error, /valid UUID/);
+    assert.equal(repositoryLoads, 0);
   });
 
   it('protects admin status and delete operations with the admin key', async () => {

@@ -5,6 +5,8 @@ import {
   normalizeJsonImportPayload
 } from '../api/json-records-core.js';
 
+const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
+
 describe('JSON DB record normalization', () => {
   it('builds searchable DB fields while preserving the original JSON payload', () => {
     const record = buildJsonRecordFromUpload({
@@ -54,7 +56,7 @@ describe('JSON DB record normalization', () => {
   it('normalizes import payloads with dataset country metadata and multiple files', () => {
     const payload = normalizeJsonImportPayload({
       countryRegion: 'AU',
-      datasetId: 'dataset-1',
+      datasetId: JSON_DATASET_ID,
       files: [
         { filename: 'a.json', text: '{"recognitionText":"A"}' },
         { filename: 'b.json', text: '{"recognitionText":"B"}' }
@@ -62,7 +64,7 @@ describe('JSON DB record normalization', () => {
     });
 
     assert.equal(payload.countryRegion, 'AU');
-    assert.equal(payload.datasetId, 'dataset-1');
+    assert.equal(payload.datasetId, JSON_DATASET_ID);
     assert.equal(payload.records.length, 2);
     assert.deepEqual(
       payload.records.map((record) => record.countryRegion),
@@ -77,7 +79,7 @@ describe('JSON DB record normalization', () => {
   it('applies the admin-selected language to every imported record', () => {
     const payload = normalizeJsonImportPayload({
       countryRegion: 'AU',
-      datasetId: 'dataset-1',
+      datasetId: JSON_DATASET_ID,
       language: 'en_AU',
       files: [
         { filename: 'a.json', text: '{"recognitionText":"A"}' },
@@ -94,13 +96,13 @@ describe('JSON DB record normalization', () => {
   it('keeps otherwise identical JSON distinct across selected languages', () => {
     const australia = normalizeJsonImportPayload({
       countryRegion: 'AU',
-      datasetId: 'dataset-1',
+      datasetId: JSON_DATASET_ID,
       language: 'en_AU',
       files: [{ filename: 'same.json', text: '{"recognitionText":"Radio"}' }]
     });
     const unitedStates = normalizeJsonImportPayload({
       countryRegion: 'AU',
-      datasetId: 'dataset-1',
+      datasetId: JSON_DATASET_ID,
       language: 'en_US',
       files: [{ filename: 'same.json', text: '{"recognitionText":"Radio"}' }]
     });

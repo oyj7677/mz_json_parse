@@ -9,6 +9,7 @@ import {
   handleAdminImportRequest,
   handleAdminRecordDeleteRequest,
   handleAdminStatusRequest,
+  handleJsonCountriesRequest,
   handleJsonRecordDetailRequest,
   handleJsonRecordsRequest
 } from './api/json-records-core.js';
@@ -106,12 +107,16 @@ async function handleJsonRecordsApi(request, response, { env, jsonRecordsReposit
   const pathname = getPathname(request);
   let apiResponse;
 
-  if (pathname === '/api/json-records') {
-    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+  if (pathname === '/api/json-countries') {
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleJsonCountriesRequest(apiRequest, { repository });
+  } else if (pathname === '/api/json-records') {
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleJsonRecordsRequest(apiRequest, { repository });
   } else if (pathname.startsWith('/api/json-records/')) {
-    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleJsonRecordDetailRequest(apiRequest, {
       id: decodeURIComponent(pathname.replace('/api/json-records/', '')),
