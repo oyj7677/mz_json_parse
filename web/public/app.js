@@ -519,6 +519,7 @@ elements.stringResourceDatasetSelect.addEventListener('change', (event) => {
 elements.stringResourceFileInput.addEventListener('change', async () => {
   state.stringResource.selectedDatasetId = '';
   elements.stringResourceDatasetSelect.value = '';
+  clearDbStringResourceRows();
   await registerStringResourceFiles(elements.stringResourceFileInput.files);
   elements.stringResourceFileInput.value = '';
 });
@@ -583,6 +584,7 @@ elements.explorerFileInput.addEventListener('change', async () => {
   state.explorer.selectedCountry = '';
   elements.explorerDatasetSelect.value = '';
   renderExplorerCountries([]);
+  clearDbExplorerRows();
   await registerExplorerFiles(elements.explorerFileInput.files);
   elements.explorerFileInput.value = '';
 });
@@ -592,6 +594,7 @@ elements.explorerFolderInput.addEventListener('change', async () => {
   state.explorer.selectedCountry = '';
   elements.explorerDatasetSelect.value = '';
   renderExplorerCountries([]);
+  clearDbExplorerRows();
   await registerExplorerFiles(elements.explorerFolderInput.files);
   elements.explorerFolderInput.value = '';
 });

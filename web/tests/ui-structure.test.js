@@ -816,6 +816,26 @@ describe('upload-first UI structure', () => {
     assert.match(app, /elements\.explorerCountrySelect\.addEventListener\('change'/);
     assert.match(app, /elements\.mappingDatasetSelect\.addEventListener\('change'/);
     assert.match(app, /elements\.stringResourceDatasetSelect\.addEventListener\('change'/);
+
+    const explorerFileHandler = app.slice(
+      app.indexOf("elements.explorerFileInput.addEventListener('change'"),
+      app.indexOf("elements.explorerFolderInput.addEventListener('change'")
+    );
+    const explorerFolderHandler = app.slice(
+      app.indexOf("elements.explorerFolderInput.addEventListener('change'"),
+      app.indexOf("elements.explorerSearchInput.addEventListener('input'")
+    );
+    const stringResourceFileHandler = app.slice(
+      app.indexOf("elements.stringResourceFileInput.addEventListener('change'"),
+      app.indexOf("elements.clearStringResourceButton.addEventListener('click'")
+    );
+
+    assert.match(explorerFileHandler, /clearDbExplorerRows\(\)/);
+    assert.match(explorerFolderHandler, /clearDbExplorerRows\(\)/);
+    assert.match(stringResourceFileHandler, /clearDbStringResourceRows\(\)/);
+    assert.ok(explorerFileHandler.indexOf('clearDbExplorerRows()') < explorerFileHandler.indexOf('registerExplorerFiles('));
+    assert.ok(explorerFolderHandler.indexOf('clearDbExplorerRows()') < explorerFolderHandler.indexOf('registerExplorerFiles('));
+    assert.ok(stringResourceFileHandler.indexOf('clearDbStringResourceRows()') < stringResourceFileHandler.indexOf('registerStringResourceFiles('));
   });
 
   it('hides explorer suggestions when the user leaves search assistance mode', async () => {
