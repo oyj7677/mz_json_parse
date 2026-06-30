@@ -1,6 +1,35 @@
 let cachedSql;
 let cachedDatabaseUrl = '';
 
+const SELECT_DATASET_TOOL_TYPE_QUERY = `
+  select tool_type
+  from datasets
+  where id = $1
+    and deleted_at is null
+  limit 1
+`;
+
+const DEACTIVATE_SELECTED_TOOL_DATASETS_QUERY = `
+  update datasets
+  set is_active = false
+  where tool_type = (
+      select tool_type
+      from datasets
+      where id = $1
+        and deleted_at is null
+      limit 1
+    )
+    and deleted_at is null
+`;
+
+const ACTIVATE_DATASET_QUERY = `
+  update datasets
+  set is_active = true
+  where id = $1
+    and deleted_at is null
+  returning id, tool_type, name, description, source_type, is_active, record_count, error_count, metadata, created_at
+`;
+
 export function resolveDatabaseUrl(env = process.env) {
   return String(env?.DATABASE_URL || env?.POSTGRES_URL || '').trim();
 }
@@ -71,46 +100,62 @@ export function createDatasetsRepository(sql) {
     },
 
     async setActiveDataset(id) {
-      const selectedRows = await sql.query(`
-        select tool_type
-        from datasets
-        where id = $1
-          and deleted_at is null
-        limit 1
-      `, [id]);
+      const [selectedRows, , rows] = await runSetActiveDatasetQueries(sql, id);
       const toolType = selectedRows[0]?.tool_type;
       if (!toolType) {
         return undefined;
       }
-      await sql.query(`
-        update datasets
-        set is_active = false
-        where tool_type = $1
-          and deleted_at is null
-      `, [toolType]);
-      const rows = await sql.query(`
-        update datasets
-        set is_active = true
-        where id = $1
-          and deleted_at is null
-        returning id, tool_type, name, description, source_type, is_active, record_count, error_count, metadata, created_at
-      `, [id]);
       return rows[0] ? normalizeDatasetRow(rows[0]) : undefined;
     },
 
-    async updateDatasetCounts(id, { errorCount = 0, metadata = {}, recordCount = 0 } = {}) {
+    async updateDatasetCounts(id, options = {}) {
+      const { errorCount = 0, recordCount = 0 } = options;
+      const hasMetadata = Object.prototype.hasOwnProperty.call(options, 'metadata');
+      const params = [id, recordCount, errorCount];
+      const metadataSql = hasMetadata ? `,
+            metadata = $4::jsonb` : '';
+      if (hasMetadata) {
+        const metadata = options.metadata === undefined ? {} : options.metadata;
+        params.push(JSON.stringify(metadata));
+      }
+
       const rows = await sql.query(`
         update datasets
         set record_count = $2,
-            error_count = $3,
-            metadata = $4::jsonb
+            error_count = $3${metadataSql}
         where id = $1
           and deleted_at is null
         returning id, tool_type, name, description, source_type, is_active, record_count, error_count, metadata, created_at
-      `, [id, recordCount, errorCount, JSON.stringify(metadata)]);
+      `, params);
       return rows[0] ? normalizeDatasetRow(rows[0]) : undefined;
     }
   };
+}
+
+async function runSetActiveDatasetQueries(sql, id) {
+  if (typeof sql.transaction === 'function') {
+    return sql.transaction((tx) => [
+      tx.query(SELECT_DATASET_TOOL_TYPE_QUERY, [id]),
+      tx.query(DEACTIVATE_SELECTED_TOOL_DATASETS_QUERY, [id]),
+      tx.query(ACTIVATE_DATASET_QUERY, [id])
+    ]);
+  }
+
+  await sql.query('begin');
+  try {
+    const selectedRows = await sql.query(SELECT_DATASET_TOOL_TYPE_QUERY, [id]);
+    if (!selectedRows[0]?.tool_type) {
+      await sql.query('rollback');
+      return [selectedRows, [], []];
+    }
+    const deactivatedRows = await sql.query(DEACTIVATE_SELECTED_TOOL_DATASETS_QUERY, [id]);
+    const rows = await sql.query(ACTIVATE_DATASET_QUERY, [id]);
+    await sql.query('commit');
+    return [selectedRows, deactivatedRows, rows];
+  } catch (error) {
+    await sql.query('rollback');
+    throw error;
+  }
 }
 
 export function normalizeDatasetRow(row = {}) {
