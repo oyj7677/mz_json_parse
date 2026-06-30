@@ -1,5 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { createAdminJsonBatchDeleteRoute } from '../api/admin/json-batches/[id].js';
+import { createAdminJsonImportRoute } from '../api/admin/json-records/import.js';
+import { createAdminJsonRecordDeleteRoute } from '../api/admin/json-records/[id].js';
+import { createAdminJsonStatusRoute } from '../api/admin/json-records/status.js';
 import {
   handleAdminBatchDeleteRequest,
   handleAdminImportRequest,
@@ -202,4 +206,74 @@ describe('JSON records API handlers', () => {
       ['batch', 'batch-1']
     ]);
   });
+
+  it('keeps JSON admin Vercel wrappers auth-first before loading repositories', async () => {
+    await withAdminKey('secret', async () => {
+      let repositoryLoads = 0;
+      const getRepository = async () => {
+        repositoryLoads += 1;
+        return {
+          async deleteBatch() {
+            return { deletedCount: 1 };
+          },
+          async deleteRecord() {
+            return { deletedCount: 1 };
+          },
+          async getStatus() {
+            return { batchCount: 0, recordCount: 0 };
+          },
+          async importRecords() {
+            return { insertedCount: 0, skippedCount: 0 };
+          }
+        };
+      };
+      const routes = [
+        {
+          request: new Request('https://example.com/api/admin/json-records/status'),
+          route: createAdminJsonStatusRoute({ getRepository })
+        },
+        {
+          request: new Request('https://example.com/api/admin/json-records/import', {
+            body: JSON.stringify({ files: [] }),
+            method: 'POST'
+          }),
+          route: createAdminJsonImportRoute({ getRepository })
+        },
+        {
+          request: new Request('https://example.com/api/admin/json-records/record-1', {
+            method: 'DELETE'
+          }),
+          route: createAdminJsonRecordDeleteRoute({ getRepository })
+        },
+        {
+          request: new Request('https://example.com/api/admin/json-batches/batch-1', {
+            method: 'DELETE'
+          }),
+          route: createAdminJsonBatchDeleteRoute({ getRepository })
+        }
+      ];
+
+      const responses = await Promise.all(
+        routes.map(({ request, route }) => route.handler.fetch(request))
+      );
+
+      assert.deepEqual(responses.map((response) => response.status), [401, 401, 401, 401]);
+      assert.equal(repositoryLoads, 0);
+    });
+  });
 });
+
+async function withAdminKey(value, callback) {
+  const previousValue = process.env.JSON_ADMIN_KEY;
+  process.env.JSON_ADMIN_KEY = value;
+
+  try {
+    await callback();
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env.JSON_ADMIN_KEY;
+    } else {
+      process.env.JSON_ADMIN_KEY = previousValue;
+    }
+  }
+}

@@ -1,29 +1,26 @@
-import {
-  handleAdminStatusRequest,
-  jsonResponse
-} from '../../json-records-core.js';
+import { handleAdminStatusRequest } from '../../json-records-core.js';
 import { getJsonRecordsRepository } from '../../json-records-repository.js';
 import { createNodeCompatibleHandler } from '../../vercel-node-adapter.js';
 
-export async function GET(request) {
-  const repository = await getJsonRecordsRepository();
-  return handleAdminStatusRequest(request, {
-    repository
-  });
-}
+export function createAdminJsonStatusRoute({ getRepository = getJsonRecordsRepository } = {}) {
+  const repository = () => getRepository();
 
-export function POST() {
-  return methodNotAllowedResponse();
-}
-
-export default createNodeCompatibleHandler(async (request) => {
-  if (request.method === 'GET') {
-    return GET(request);
+  function GET(request) {
+    return handleAdminStatusRequest(request, { repository });
   }
 
-  return methodNotAllowedResponse();
-});
+  const handler = createNodeCompatibleHandler(async (request) => {
+    if (request.method === 'GET') {
+      return GET(request);
+    }
 
-function methodNotAllowedResponse() {
-  return jsonResponse({ error: 'Method not allowed.' }, 405);
+    return handleAdminStatusRequest(request);
+  });
+
+  return { GET, handler };
 }
+
+const adminJsonStatusRoute = createAdminJsonStatusRoute();
+
+export const GET = adminJsonStatusRoute.GET;
+export default adminJsonStatusRoute.handler;

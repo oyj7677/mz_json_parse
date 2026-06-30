@@ -1,35 +1,36 @@
-import {
-  handleAdminRecordDeleteRequest,
-  jsonResponse
-} from '../../json-records-core.js';
+import { handleAdminRecordDeleteRequest } from '../../json-records-core.js';
 import { getJsonRecordsRepository } from '../../json-records-repository.js';
 import { createNodeCompatibleHandler } from '../../vercel-node-adapter.js';
 
-export async function DELETE(request) {
-  const repository = await getJsonRecordsRepository();
-  return handleAdminRecordDeleteRequest(request, {
-    id: routeId(request),
-    repository
-  });
-}
+export function createAdminJsonRecordDeleteRoute({ getRepository = getJsonRecordsRepository } = {}) {
+  const repository = () => getRepository();
 
-export function GET() {
-  return methodNotAllowedResponse();
-}
-
-export default createNodeCompatibleHandler(async (request) => {
-  if (request.method === 'DELETE') {
-    return DELETE(request);
+  function DELETE(request) {
+    return handleAdminRecordDeleteRequest(request, {
+      id: routeId(request),
+      repository
+    });
   }
 
-  return methodNotAllowedResponse();
-});
+  const handler = createNodeCompatibleHandler(async (request) => {
+    if (request.method === 'DELETE') {
+      return DELETE(request);
+    }
+
+    return handleAdminRecordDeleteRequest(request, {
+      id: routeId(request)
+    });
+  });
+
+  return { DELETE, handler };
+}
+
+const adminJsonRecordDeleteRoute = createAdminJsonRecordDeleteRoute();
+
+export const DELETE = adminJsonRecordDeleteRoute.DELETE;
+export default adminJsonRecordDeleteRoute.handler;
 
 function routeId(request) {
   const pathname = new URL(request.url).pathname;
   return decodeURIComponent(pathname.split('/').filter(Boolean).at(-1) ?? '');
-}
-
-function methodNotAllowedResponse() {
-  return jsonResponse({ error: 'Method not allowed.' }, 405);
 }
