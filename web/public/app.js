@@ -17,6 +17,7 @@ import {
   parseExplorerSearchTerms,
   parseUploadedJsonContent,
   parseJsonCandidates,
+  resolveActiveAdminDatasetId,
   resolveMappingGroupSelection,
   sanitizeFilenameBase
 } from './core.js';
@@ -925,11 +926,10 @@ async function loadAdminDatasets() {
   }
 
   state.admin.datasets = Array.isArray(body.datasets) ? body.datasets : [];
-  const hasSelectedDataset = state.admin.datasets.some((dataset) => dataset.id === state.admin.selectedDatasetId);
-  if (!hasSelectedDataset) {
-    const preferredDataset = state.admin.datasets.find((dataset) => dataset.isActive) ?? state.admin.datasets[0];
-    state.admin.selectedDatasetId = preferredDataset?.id ?? '';
-  }
+  state.admin.selectedDatasetId = resolveActiveAdminDatasetId(
+    state.admin.datasets,
+    state.admin.selectedDatasetId
+  );
 }
 
 async function loadAdminStatus() {
@@ -1061,6 +1061,11 @@ function renderAdminDatasetOptions() {
     const option = document.createElement('option');
     option.value = '';
     option.textContent = 'Dataset 없음';
+    fragment.append(option);
+  } else if (!resolveActiveAdminDatasetId(state.admin.datasets, state.admin.selectedDatasetId)) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Active dataset 없음';
     fragment.append(option);
   }
   for (const dataset of state.admin.datasets) {
@@ -1225,7 +1230,10 @@ function adminLanguage() {
 }
 
 function adminDatasetId() {
-  return String(state.admin.selectedDatasetId || elements.adminDatasetSelect.value || '').trim();
+  return resolveActiveAdminDatasetId(
+    state.admin.datasets,
+    state.admin.selectedDatasetId || elements.adminDatasetSelect.value
+  );
 }
 
 function adminCountryRegion() {

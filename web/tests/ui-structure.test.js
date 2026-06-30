@@ -351,7 +351,7 @@ describe('upload-first UI structure', () => {
     assert.match(app, /language:\s*adminLanguage\(\)/);
     assert.match(app, /datasetId:\s*adminDatasetId\(\)/);
     assert.match(app, /countryRegion:\s*adminCountryRegion\(\)/);
-    assert.match(app, /state\.admin\.datasets\.find\(\(dataset\) => dataset\.isActive\)/);
+    assert.match(app, /resolveActiveAdminDatasetId/);
     assert.match(app, /option\.disabled = !dataset\.isActive/);
     assert.match(app, /ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY/);
     assert.match(app, /DEFAULT_ADMIN_LANGUAGE_OPTIONS/);

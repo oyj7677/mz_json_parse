@@ -848,6 +848,19 @@ export function normalizeMappingWorkbook(workbook) {
   return rows;
 }
 
+export function resolveActiveAdminDatasetId(datasets = [], preferredDatasetId = '') {
+  const preferredId = String(preferredDatasetId ?? '').trim();
+  const activeDatasets = Array.isArray(datasets)
+    ? datasets.filter((dataset) => dataset?.isActive && String(dataset.id ?? '').trim())
+    : [];
+
+  if (preferredId && activeDatasets.some((dataset) => String(dataset.id) === preferredId)) {
+    return preferredId;
+  }
+
+  return String(activeDatasets[0]?.id ?? '').trim();
+}
+
 export function filterMappingRows(rows, {
   query = '',
   selectedCategories = MAPPING_DEFAULT_CATEGORIES,

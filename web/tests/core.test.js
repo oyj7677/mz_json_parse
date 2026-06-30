@@ -13,6 +13,7 @@ import {
   needsEnglishTranslation,
   parseUploadedJsonContent,
   parseJsonCandidates,
+  resolveActiveAdminDatasetId,
   sanitizeFilenameBase
 } from '../public/core.js';
 
@@ -193,6 +194,20 @@ describe('recognitionText and filename handling', () => {
       'default_json_3.json',
       'default_json_1_2.json'
     ]);
+  });
+});
+
+describe('admin dataset selection helpers', () => {
+  it('keeps only active JSON dataset selections for upload', () => {
+    const datasets = [
+      { id: 'inactive-json', isActive: false, name: 'Old JSON' },
+      { id: 'active-json', isActive: true, name: 'Current JSON' }
+    ];
+
+    assert.equal(resolveActiveAdminDatasetId(datasets, 'active-json'), 'active-json');
+    assert.equal(resolveActiveAdminDatasetId(datasets, 'inactive-json'), 'active-json');
+    assert.equal(resolveActiveAdminDatasetId(datasets, ''), 'active-json');
+    assert.equal(resolveActiveAdminDatasetId([{ id: 'inactive-json', isActive: false }], 'inactive-json'), '');
   });
 });
 
