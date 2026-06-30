@@ -553,6 +553,32 @@ describe('datasets API handlers', () => {
       assert.equal(repositoryCalls, 0);
     });
   });
+
+  it('keeps admin active wrapper auth-first for unauthenticated POST requests', async () => {
+    await withAdminKey('secret', async () => {
+      let repositoryCalls = 0;
+      const route = createAdminDatasetActiveRoute({
+        async getRepository() {
+          repositoryCalls += 1;
+          return {
+            async setActiveDataset() {
+              return {};
+            }
+          };
+        }
+      });
+
+      const response = await route.handler.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1/active', {
+          method: 'POST'
+        })
+      );
+
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).error, 'Unauthorized.');
+      assert.equal(repositoryCalls, 0);
+    });
+  });
 });
 
 async function withAdminKey(value, callback) {
