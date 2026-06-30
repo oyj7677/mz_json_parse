@@ -119,6 +119,19 @@ describe('datasets repository', () => {
     assert.match(calls[2].text, /is_active = true/);
   });
 
+  it('rejects active switching without a transaction-capable SQL client', async () => {
+    const repository = createDatasetsRepository({
+      async query() {
+        return [];
+      }
+    });
+
+    await assert.rejects(
+      () => repository.setActiveDataset('dataset-1'),
+      /setActiveDataset requires a transaction-capable SQL client/
+    );
+  });
+
   it('updates dataset counts without overwriting metadata by default', async () => {
     const calls = [];
     const sql = {
@@ -184,9 +197,13 @@ describe('datasets repository', () => {
 
   it('scopes active JSON content hash uniqueness by dataset and country', async () => {
     const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
+    const createIndexPosition = schema.indexOf('create unique index if not exists json_records_active_dataset_country_content_hash_idx');
+    const dropIndexPosition = schema.indexOf('drop index if exists json_records_active_content_hash_idx');
 
     assert.match(schema, /drop index if exists json_records_active_content_hash_idx/);
     assert.match(schema, /create unique index if not exists json_records_active_dataset_country_content_hash_idx/);
+    assert.ok(createIndexPosition >= 0);
+    assert.ok(dropIndexPosition > createIndexPosition);
     assert.match(schema, /coalesce\(dataset_id, '00000000-0000-0000-0000-000000000000'::uuid\)/);
     assert.match(schema, /country_region,\s*content_hash/);
   });

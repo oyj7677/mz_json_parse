@@ -133,29 +133,15 @@ export function createDatasetsRepository(sql) {
 }
 
 async function runSetActiveDatasetQueries(sql, id) {
-  if (typeof sql.transaction === 'function') {
-    return sql.transaction((tx) => [
-      tx.query(SELECT_DATASET_TOOL_TYPE_QUERY, [id]),
-      tx.query(DEACTIVATE_SELECTED_TOOL_DATASETS_QUERY, [id]),
-      tx.query(ACTIVATE_DATASET_QUERY, [id])
-    ]);
+  if (typeof sql.transaction !== 'function') {
+    throw new Error('setActiveDataset requires a transaction-capable SQL client.');
   }
 
-  await sql.query('begin');
-  try {
-    const selectedRows = await sql.query(SELECT_DATASET_TOOL_TYPE_QUERY, [id]);
-    if (!selectedRows[0]?.tool_type) {
-      await sql.query('rollback');
-      return [selectedRows, [], []];
-    }
-    const deactivatedRows = await sql.query(DEACTIVATE_SELECTED_TOOL_DATASETS_QUERY, [id]);
-    const rows = await sql.query(ACTIVATE_DATASET_QUERY, [id]);
-    await sql.query('commit');
-    return [selectedRows, deactivatedRows, rows];
-  } catch (error) {
-    await sql.query('rollback');
-    throw error;
-  }
+  return sql.transaction((tx) => [
+    tx.query(SELECT_DATASET_TOOL_TYPE_QUERY, [id]),
+    tx.query(DEACTIVATE_SELECTED_TOOL_DATASETS_QUERY, [id]),
+    tx.query(ACTIVATE_DATASET_QUERY, [id])
+  ]);
 }
 
 export function normalizeDatasetRow(row = {}) {
