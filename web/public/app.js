@@ -38,6 +38,11 @@ import { normalizeToolRoute, pathForTool } from './routes.js';
 const EXPLORER_COLUMN_STORAGE_KEY = 'mz-json-explorer-column-widths';
 const ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY = 'mz-json-admin-language-options';
 const STRING_RESOURCE_RESULT_RENDER_LIMIT = 500;
+const ADMIN_DATASET_TOOL_TYPES = {
+  json: 'json',
+  mapping: 'mapping_table',
+  stringResource: 'string_resource'
+};
 const DEFAULT_ADMIN_LANGUAGE_OPTIONS = [
   'ko_KR',
   'en_US',
@@ -948,7 +953,7 @@ async function createAdminDataset() {
       body: JSON.stringify({
         description: elements.adminDatasetDescriptionInput.value.trim(),
         name,
-        tool: state.adminDb.activeTool
+        toolType: adminDatasetToolType()
       }),
       headers: adminHeaders({ json: true }),
       method: 'POST'
@@ -1216,7 +1221,7 @@ async function loadAdminDatasets(tool = state.adminDb.activeTool) {
       headers: adminHeaders(),
       method: 'GET'
     })
-    : await fetch(`/api/admin/datasets?tool=${encodeURIComponent(tool)}`, {
+    : await fetch(`/api/admin/datasets?tool=${encodeURIComponent(adminDatasetToolType(normalizedTool))}`, {
       headers: adminHeaders(),
       method: 'GET'
     });
@@ -1605,6 +1610,10 @@ function normalizeAdminLanguage(value) {
 function normalizeAdminTool(value) {
   const tool = String(value ?? '').trim();
   return ['json', 'mapping', 'stringResource'].includes(tool) ? tool : 'json';
+}
+
+function adminDatasetToolType(tool = state.adminDb.activeTool) {
+  return ADMIN_DATASET_TOOL_TYPES[normalizeAdminTool(tool)];
 }
 
 function adminDbDatasetId(tool = state.adminDb.activeTool) {

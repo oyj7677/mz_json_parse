@@ -425,7 +425,13 @@ describe('upload-first UI structure', () => {
 
     assert.match(app, /from '\.\/mapping-table-xlsx\.js'/);
     assert.match(app, /parseMappingWorkbookFile/);
-    assert.match(app, /fetch\(`\/api\/admin\/datasets\?tool=\$\{encodeURIComponent\(tool\)\}`/);
+    assert.match(app, /ADMIN_DATASET_TOOL_TYPES/);
+    assert.match(app, /mapping:\s*'mapping_table'/);
+    assert.match(app, /stringResource:\s*'string_resource'/);
+    assert.match(app, /function adminDatasetToolType\(tool = state\.adminDb\.activeTool\)/);
+    assert.match(app, /toolType:\s*adminDatasetToolType\(\)/);
+    assert.doesNotMatch(app, /tool:\s*state\.adminDb\.activeTool/);
+    assert.match(app, /fetch\(`\/api\/admin\/datasets\?tool=\$\{encodeURIComponent\(adminDatasetToolType\(normalizedTool\)\)\}`/);
     assert.match(app, /fetch\('\/api\/admin\/datasets'/);
     assert.match(app, /fetch\(`\/api\/admin\/datasets\/\$\{encodeURIComponent\(id\)\}\/active`/);
     assert.match(app, /fetch\('\/api\/admin\/mapping-table\/import'/);
