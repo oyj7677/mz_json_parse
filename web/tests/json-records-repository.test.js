@@ -158,6 +158,7 @@ describe('JSON records Neon repository', () => {
     const importQuery = queries[0];
     assert.match(importQuery.text, /from datasets/);
     assert.match(importQuery.text, /tool_type = 'json'/);
+    assert.match(importQuery.text, /is_active = true/);
     assert.match(importQuery.text, /deleted_at is null/);
     assert.match(importQuery.text, /insert into json_records/);
     assert.match(importQuery.text, /from live_dataset\s+cross join input_records/);
@@ -196,6 +197,7 @@ describe('JSON records Neon repository', () => {
     assert.match(queries[0].text, /insert into json_records/);
     assert.match(queries[0].text, /select count\(\*\)::int as count/);
     assert.match(queries[0].text, /update datasets/);
+    assert.match(queries[0].text, /is_active = true/);
     assert.match(queries[0].text, /record_count =/);
   });
 

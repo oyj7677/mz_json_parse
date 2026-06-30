@@ -7,6 +7,7 @@ const IMPORT_JSON_RECORDS_QUERY = `
     from datasets
     where id = $1::uuid
       and tool_type = 'json'
+      and is_active = true
       and deleted_at is null
     for update
   ),
@@ -82,6 +83,7 @@ const IMPORT_JSON_RECORDS_QUERY = `
         )
     where id = $1::uuid
       and tool_type = 'json'
+      and is_active = true
       and deleted_at is null
     returning id, record_count, error_count
   )
@@ -104,6 +106,7 @@ const UPDATE_JSON_DATASET_RECORD_COUNT_QUERY = `
   set record_count = $2
   where id = $1::uuid
     and tool_type = 'json'
+    and is_active = true
     and deleted_at is null
   returning id, record_count
 `;
