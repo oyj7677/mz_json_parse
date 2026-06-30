@@ -1024,29 +1024,29 @@ async function uploadAdminJsonDatasetFiles() {
 
 async function importAdminJsonFiles() {
   if (!adminKey()) {
-    setAdminImportStatus('관리자 키를 입력하세요.');
+    setAdminImportStatus('관리자 키를 입력하세요.', 'json');
     return;
   }
   if (!adminLanguage()) {
-    setAdminImportStatus('Language 값을 선택하거나 입력하세요.');
+    setAdminImportStatus('Language 값을 선택하거나 입력하세요.', 'json');
     return;
   }
   if (!adminDatasetId()) {
-    setAdminImportStatus('Dataset을 선택하세요.');
+    setAdminImportStatus('Dataset을 선택하세요.', 'json');
     return;
   }
   if (!adminCountryRegion()) {
-    setAdminImportStatus('Country/Region 값을 입력하세요.');
+    setAdminImportStatus('Country/Region 값을 입력하세요.', 'json');
     return;
   }
   if (state.admin.selectedFiles.length === 0) {
-    setAdminImportStatus('업로드할 JSON 파일을 선택하세요.');
+    setAdminImportStatus('업로드할 JSON 파일을 선택하세요.', 'json');
     return;
   }
 
   state.admin.isLoading = true;
   renderAdminDashboard();
-  setAdminImportStatus(`파일 ${state.admin.selectedFiles.length}개를 읽는 중입니다.`);
+  setAdminImportStatus(`파일 ${state.admin.selectedFiles.length}개를 읽는 중입니다.`, 'json');
 
   try {
     const files = [];
@@ -1074,13 +1074,13 @@ async function importAdminJsonFiles() {
       throw new Error(body.error ?? `업로드 실패 (${response.status})`);
     }
 
-    setAdminImportStatus(`업로드 완료: 저장 ${body.insertedCount ?? 0}개, 중복 ${body.skippedCount ?? 0}개`);
+    setAdminImportStatus(`업로드 완료: 저장 ${body.insertedCount ?? 0}개, 중복 ${body.skippedCount ?? 0}개`, 'json');
     rememberAdminLanguageOption(adminLanguage());
     elements.adminJsonFileInput.value = '';
     state.admin.selectedFiles = [];
     await refreshAdminDashboard();
   } catch (error) {
-    setAdminImportStatus(error instanceof Error ? error.message : String(error));
+    setAdminImportStatus(error instanceof Error ? error.message : String(error), 'json');
   } finally {
     state.admin.isLoading = false;
     renderAdminDashboard();

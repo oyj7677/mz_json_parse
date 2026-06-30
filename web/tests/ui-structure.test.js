@@ -446,6 +446,10 @@ describe('upload-first UI structure', () => {
     assert.match(app, /function adminImportStatusElement\(tool = state\.adminDb\.activeTool\)/);
     assert.match(app, /adminMappingImportStatus:\s*document\.querySelector\('#adminMappingImportStatus'\)/);
     assert.match(app, /adminStringResourceImportStatus:\s*document\.querySelector\('#adminStringResourceImportStatus'\)/);
+    assert.match(app, /setAdminImportStatus\('관리자 키를 입력하세요\.',\s*'json'\)/);
+    assert.match(app, /setAdminImportStatus\(`파일 \$\{state\.admin\.selectedFiles\.length\}개를 읽는 중입니다\.`,\s*'json'\)/);
+    assert.match(app, /setAdminImportStatus\(`업로드 완료: 저장 \$\{body\.insertedCount \?\? 0\}개, 중복 \$\{body\.skippedCount \?\? 0\}개`,\s*'json'\)/);
+    assert.match(app, /setAdminImportStatus\(error instanceof Error \? error\.message : String\(error\),\s*'json'\)/);
     assert.match(app, /setAdminImportStatus\('Admin key is required\.',\s*'mapping'\)/);
     assert.match(app, /setAdminImportStatus\('Parsing mapping workbook\.',\s*'mapping'\)/);
     assert.match(app, /setAdminImportStatus\(`Mapping import complete: \$\{body\.insertedCount \?\? 0\} rows\.`,\s*'mapping'\)/);
