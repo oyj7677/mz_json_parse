@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import adminDatasetsApi from '../api/admin/datasets.js';
+import adminDatasetDeleteApi from '../api/admin/datasets/[id].js';
+import adminDatasetActiveApi from '../api/admin/datasets/[id]/active.js';
 import {
   handleActiveDatasetRequest,
   handleAdminDatasetActiveRequest,
@@ -384,4 +387,82 @@ describe('datasets API handlers', () => {
     assert.equal(response.status, 404);
     assert.equal(body.error, 'Dataset not found.');
   });
+
+  it('routes admin dataset wrapper wrong methods through core authentication', async () => {
+    await withAdminKey('secret', async () => {
+      const unauthorizedResponse = await adminDatasetsApi.fetch(
+        new Request('https://example.com/api/admin/datasets?tool=json', {
+          method: 'PUT'
+        })
+      );
+      const authorizedResponse = await adminDatasetsApi.fetch(
+        new Request('https://example.com/api/admin/datasets?tool=json', {
+          headers: { 'x-admin-key': 'secret' },
+          method: 'PUT'
+        })
+      );
+
+      assert.equal(unauthorizedResponse.status, 401);
+      assert.equal((await unauthorizedResponse.json()).error, 'Unauthorized.');
+      assert.equal(authorizedResponse.status, 405);
+      assert.equal((await authorizedResponse.json()).error, 'Method not allowed.');
+    });
+  });
+
+  it('routes admin dataset delete wrapper wrong methods through core authentication', async () => {
+    await withAdminKey('secret', async () => {
+      const unauthorizedResponse = await adminDatasetDeleteApi.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1', {
+          method: 'GET'
+        })
+      );
+      const authorizedResponse = await adminDatasetDeleteApi.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1', {
+          headers: { 'x-admin-key': 'secret' },
+          method: 'GET'
+        })
+      );
+
+      assert.equal(unauthorizedResponse.status, 401);
+      assert.equal((await unauthorizedResponse.json()).error, 'Unauthorized.');
+      assert.equal(authorizedResponse.status, 405);
+      assert.equal((await authorizedResponse.json()).error, 'Method not allowed.');
+    });
+  });
+
+  it('routes admin dataset active wrapper wrong methods through core authentication', async () => {
+    await withAdminKey('secret', async () => {
+      const unauthorizedResponse = await adminDatasetActiveApi.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1/active', {
+          method: 'GET'
+        })
+      );
+      const authorizedResponse = await adminDatasetActiveApi.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1/active', {
+          headers: { 'x-admin-key': 'secret' },
+          method: 'GET'
+        })
+      );
+
+      assert.equal(unauthorizedResponse.status, 401);
+      assert.equal((await unauthorizedResponse.json()).error, 'Unauthorized.');
+      assert.equal(authorizedResponse.status, 405);
+      assert.equal((await authorizedResponse.json()).error, 'Method not allowed.');
+    });
+  });
 });
+
+async function withAdminKey(value, callback) {
+  const previousValue = process.env.JSON_ADMIN_KEY;
+  process.env.JSON_ADMIN_KEY = value;
+
+  try {
+    await callback();
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env.JSON_ADMIN_KEY;
+    } else {
+      process.env.JSON_ADMIN_KEY = previousValue;
+    }
+  }
+}

@@ -1,7 +1,4 @@
-import {
-  handleAdminDatasetsRequest,
-  jsonResponse
-} from '../datasets-core.js';
+import { handleAdminDatasetsRequest } from '../datasets-core.js';
 import { getDatasetsRepository } from '../datasets-repository.js';
 import { createNodeCompatibleHandler } from '../vercel-node-adapter.js';
 
@@ -23,9 +20,5 @@ export default createNodeCompatibleHandler(async (request) => {
     return POST(request);
   }
 
-  return methodNotAllowedResponse();
+  return handleAdminDatasetsRequest(request);
 });
-
-function methodNotAllowedResponse() {
-  return jsonResponse({ error: 'Method not allowed.' }, 405);
-}

@@ -1,7 +1,4 @@
-import {
-  handleAdminDatasetDeleteRequest,
-  jsonResponse
-} from '../../datasets-core.js';
+import { handleAdminDatasetDeleteRequest } from '../../datasets-core.js';
 import { getDatasetsRepository } from '../../datasets-repository.js';
 import { createNodeCompatibleHandler } from '../../vercel-node-adapter.js';
 
@@ -13,8 +10,10 @@ export async function DELETE(request) {
   });
 }
 
-export function GET() {
-  return methodNotAllowedResponse();
+export function GET(request) {
+  return handleAdminDatasetDeleteRequest(request, {
+    id: routeId(request)
+  });
 }
 
 export default createNodeCompatibleHandler(async (request) => {
@@ -22,14 +21,12 @@ export default createNodeCompatibleHandler(async (request) => {
     return DELETE(request);
   }
 
-  return methodNotAllowedResponse();
+  return handleAdminDatasetDeleteRequest(request, {
+    id: routeId(request)
+  });
 });
 
 function routeId(request) {
   const pathname = new URL(request.url).pathname;
   return decodeURIComponent(pathname.split('/').filter(Boolean).at(-1) ?? '');
-}
-
-function methodNotAllowedResponse() {
-  return jsonResponse({ error: 'Method not allowed.' }, 405);
 }
