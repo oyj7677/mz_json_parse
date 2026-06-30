@@ -1,4 +1,5 @@
-const DEFAULT_ADMIN_KEY = '1313';
+import { requireAdminKey } from './admin-auth.js';
+
 const SUPPORTED_TOOL_TYPES = new Set([
   'json',
   'mapping_table',
@@ -164,21 +165,6 @@ function isPlainObject(value) {
 
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
-}
-
-function requireAdminKey(request, env) {
-  const configuredKey = String(env?.JSON_ADMIN_KEY ?? DEFAULT_ADMIN_KEY).trim();
-  const providedKey = String(
-    request.headers.get('x-admin-key') ??
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-    ''
-  ).trim();
-
-  if (providedKey !== configuredKey) {
-    return jsonResponse({ error: 'Unauthorized.' }, 401);
-  }
-
-  return undefined;
 }
 
 async function ensureRepository(repository) {

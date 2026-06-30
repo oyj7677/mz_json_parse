@@ -162,11 +162,11 @@ async function handleDatasetsApi(request, response, { datasetsRepository, env })
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleActiveDatasetRequest(apiRequest, { repository });
   } else if (pathname === '/api/admin/datasets') {
-    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const repository = datasetsRepository ?? (() => getDatasetsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminDatasetsRequest(apiRequest, { env, repository });
   } else if (isAdminDatasetActivePath(pathname)) {
-    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const repository = datasetsRepository ?? (() => getDatasetsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminDatasetActiveRequest(apiRequest, {
       env,
@@ -174,7 +174,7 @@ async function handleDatasetsApi(request, response, { datasetsRepository, env })
       repository
     });
   } else if (isAdminDatasetDetailPath(pathname)) {
-    const repository = datasetsRepository ?? await getDatasetsRepository(env);
+    const repository = datasetsRepository ?? (() => getDatasetsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminDatasetDeleteRequest(apiRequest, {
       env,

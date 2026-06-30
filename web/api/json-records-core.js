@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
+import { requireAdminKey } from './admin-auth.js';
 import {
   createExplorerItem,
   parseUploadedJsonContent
 } from '../public/core.js';
 
 const DEFAULT_IMPORT_BATCH_NAME = 'JSON upload';
-const DEFAULT_ADMIN_KEY = '1313';
 const MAX_IMPORT_FILES = 500;
 const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
@@ -250,22 +250,6 @@ async function readRequestJson(request) {
     return {};
   }
   return JSON.parse(text);
-}
-
-function requireAdminKey(request, env) {
-  const configuredKey = String(env?.JSON_ADMIN_KEY ?? DEFAULT_ADMIN_KEY).trim();
-
-  const providedKey = String(
-    request.headers.get('x-admin-key') ??
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-    ''
-  ).trim();
-
-  if (providedKey !== configuredKey) {
-    return jsonResponse({ error: 'Unauthorized.' }, 401);
-  }
-
-  return undefined;
 }
 
 function ensureRepository(repository) {

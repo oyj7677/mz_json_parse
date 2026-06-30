@@ -83,6 +83,34 @@ describe('JSON records API handlers', () => {
     assert.equal(body.status.recordCount, 0);
   });
 
+  it('does not authenticate empty or whitespace admin key configuration', async () => {
+    const repository = {
+      async getStatus() {
+        return { batchCount: 0, recordCount: 0 };
+      }
+    };
+
+    const emptyKeyResponse = await handleAdminStatusRequest(
+      new Request('https://example.com/api/admin/json-records/status'),
+      {
+        env: { JSON_ADMIN_KEY: '' },
+        repository
+      }
+    );
+    const whitespaceKeyResponse = await handleAdminStatusRequest(
+      new Request('https://example.com/api/admin/json-records/status', {
+        headers: { 'x-admin-key': '   ' }
+      }),
+      {
+        env: { JSON_ADMIN_KEY: '   ' },
+        repository
+      }
+    );
+
+    assert.equal(emptyKeyResponse.status, 401);
+    assert.equal(whitespaceKeyResponse.status, 401);
+  });
+
   it('rejects admin imports when the admin key is missing or wrong', async () => {
     const request = new Request('https://example.com/api/admin/json-records/import', {
       body: JSON.stringify({ files: [{ filename: 'a.json', text: '{"recognitionText":"A"}' }] }),

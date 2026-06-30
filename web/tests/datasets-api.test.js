@@ -304,6 +304,36 @@ describe('datasets API handlers', () => {
     assert.equal(deleteResponse.status, 401);
   });
 
+  it('does not authenticate empty or whitespace admin key configuration', async () => {
+    const repository = {
+      async listDatasets() {
+        return [];
+      }
+    };
+
+    const emptyKeyResponse = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=json'),
+      {
+        env: { JSON_ADMIN_KEY: '' },
+        repository
+      }
+    );
+    const whitespaceKeyResponse = await handleAdminDatasetsRequest(
+      new Request('https://example.com/api/admin/datasets?tool=json', {
+        headers: { 'x-admin-key': '   ' }
+      }),
+      {
+        env: { JSON_ADMIN_KEY: '   ' },
+        repository
+      }
+    );
+
+    assert.equal(emptyKeyResponse.status, 401);
+    assert.equal((await emptyKeyResponse.json()).error, 'Unauthorized.');
+    assert.equal(whitespaceKeyResponse.status, 401);
+    assert.equal((await whitespaceKeyResponse.json()).error, 'Unauthorized.');
+  });
+
   it('protects admin active and delete mutations and calls the repository with the route id', async () => {
     const calls = [];
     const repository = {
