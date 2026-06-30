@@ -11,6 +11,28 @@ create table if not exists json_import_batches (
   deleted_at timestamptz
 );
 
+create table if not exists datasets (
+  id uuid primary key default gen_random_uuid(),
+  tool_type text not null check (tool_type in ('json', 'mapping_table', 'string_resource')),
+  name text not null,
+  description text not null default '',
+  source_type text not null default 'admin_upload',
+  is_active boolean not null default false,
+  record_count integer not null default 0,
+  error_count integer not null default 0,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create index if not exists datasets_tool_type_created_at_idx
+  on datasets (tool_type, created_at desc)
+  where deleted_at is null;
+
+create unique index if not exists datasets_one_active_per_tool_idx
+  on datasets (tool_type)
+  where is_active = true and deleted_at is null;
+
 create table if not exists json_records (
   id uuid primary key default gen_random_uuid(),
   batch_id uuid references json_import_batches(id) on delete set null,
@@ -28,6 +50,10 @@ create table if not exists json_records (
   deleted_at timestamptz
 );
 
+alter table json_records
+  add column if not exists dataset_id uuid references datasets(id) on delete set null,
+  add column if not exists country_region text not null default '';
+
 create unique index if not exists json_records_active_content_hash_idx
   on json_records (content_hash)
   where deleted_at is null;
@@ -38,6 +64,10 @@ create index if not exists json_records_active_created_at_idx
 
 create index if not exists json_records_active_content_type_idx
   on json_records (content_type)
+  where deleted_at is null;
+
+create index if not exists json_records_dataset_country_idx
+  on json_records (dataset_id, country_region)
   where deleted_at is null;
 
 create index if not exists json_records_active_search_idx
