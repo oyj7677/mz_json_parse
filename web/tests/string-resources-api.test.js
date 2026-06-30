@@ -110,7 +110,7 @@ describe('string resources API handlers', () => {
 
   it('rejects empty detail ids before loading the repository', async () => {
     let repositoryLoads = 0;
-    const response = await handleStringResourceDetailRequest(
+    const emptyResponse = await handleStringResourceDetailRequest(
       new Request('https://example.com/api/string-resource-rows/'),
       {
         id: '',
@@ -124,8 +124,23 @@ describe('string resources API handlers', () => {
         }
       }
     );
+    const malformedResponse = await handleStringResourceDetailRequest(
+      new Request('https://example.com/api/string-resource-rows/not-a-uuid'),
+      {
+        id: 'not-a-uuid',
+        repository: async () => {
+          repositoryLoads += 1;
+          return {
+            async getRowById() {
+              throw new Error('should not load malformed detail');
+            }
+          };
+        }
+      }
+    );
 
-    assert.equal(response.status, 400);
+    assert.equal(emptyResponse.status, 400);
+    assert.equal(malformedResponse.status, 400);
     assert.equal(repositoryLoads, 0);
   });
 
@@ -255,6 +270,9 @@ describe('string resources API handlers', () => {
       const detailResponse = await detailRoute.handler.fetch(
         new Request('https://example.com/api/string-resource-rows/')
       );
+      const malformedDetailResponse = await detailRoute.handler.fetch(
+        new Request('https://example.com/api/string-resource-rows/not-a-uuid')
+      );
       const importResponse = await importRoute.handler.fetch(new Request('https://example.com/api/admin/string-resources/import', {
         body: JSON.stringify({ datasetId: DATASET_ID, rows: [stringResourceRow()] }),
         method: 'POST'
@@ -263,6 +281,7 @@ describe('string resources API handlers', () => {
       assert.equal(rowsResponse.status, 400);
       assert.equal(localesResponse.status, 400);
       assert.equal(detailResponse.status, 400);
+      assert.equal(malformedDetailResponse.status, 400);
       assert.equal(importResponse.status, 401);
       assert.equal(repositoryLoads, 0);
     });

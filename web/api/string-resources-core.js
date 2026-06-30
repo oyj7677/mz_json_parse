@@ -65,6 +65,9 @@ export async function handleStringResourceDetailRequest(request, { id = '', repo
   if (!rowId) {
     return jsonResponse({ error: 'id is required.' }, 400);
   }
+  if (!isUuidLike(rowId)) {
+    return jsonResponse({ error: 'id must be a valid UUID.' }, 400);
+  }
 
   const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
