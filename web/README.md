@@ -19,6 +19,7 @@
 - 파일 이름을 번역할 때 JSON 콘텐츠를 변경하지 않고 유지하세요.
 - 파일 이름을 생성할 수 없는 경우 `default_json_1.json`과 같은 안전한 대체 파일 이름을 사용하세요.
 - 중복된 파일 이름을 자동으로 방지합니다.
+- JSON Explorer, Mapping Table Explorer, String Resource Explorer 데이터를 DB dataset으로 관리할 수 있습니다.
 
 ## 파일 이름 규칙
 
@@ -87,6 +88,24 @@ http://localhost:62628/
 - 인터넷 연결이 필요합니다.
 - 번역이 실패하면 앱은 원본 텍스트를 기반으로 안전한 파일 이름을 유지하고 해당 항목에 대한 경고를 표시합니다.
 - 번역은 파일 이름에만 적용됩니다. JSON 파일 내용은 변경되지 않습니다.
+
+## DB 기반 Explorer
+
+DB 기반 데이터 관리는 `/admin` 화면에서 수행합니다.
+
+- JSON Explorer: dataset version과 country/region을 선택한 뒤 JSON 파일을 업로드합니다.
+- Mapping Table Explorer: dataset version을 만들고 Mapping Table 엑셀 파일을 업로드합니다.
+- String Resource Explorer: dataset version을 만들고 다국어 문자열 리소스 엑셀 파일을 업로드합니다.
+- 일반 검색 화면에서는 업로드된 dataset을 선택해 DB 데이터를 조회할 수 있습니다.
+
+필요한 환경변수:
+
+```text
+DATABASE_URL=Neon Postgres connection string
+JSON_ADMIN_KEY=관리자 업로드/삭제에 사용할 비밀 키
+```
+
+초기 DB는 `db/schema.sql`을 Neon SQL Editor에서 실행해 구성합니다.
 
 ## 테스트
 
