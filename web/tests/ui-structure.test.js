@@ -271,6 +271,8 @@ describe('upload-first UI structure', () => {
       'adminKeyInput',
       'adminStatus',
       'adminHelpButton',
+      'adminDatasetSelect',
+      'adminCountryRegionInput',
       'adminLanguageInput',
       'adminLanguageOptions',
       'adminAddLanguageButton',
@@ -326,6 +328,7 @@ describe('upload-first UI structure', () => {
       'refreshAdminDashboard',
       'importAdminJsonFiles',
       'loadAdminStatus',
+      'loadAdminDatasets',
       'loadAdminRecords',
       'deleteAdminRecord',
       'deleteAdminBatch',
@@ -333,6 +336,8 @@ describe('upload-first UI structure', () => {
       'renderAdminLanguageOptions',
       'registerAdminLanguageOption',
       'adminLanguage',
+      'adminDatasetId',
+      'adminCountryRegion',
       'renderAdminRecords',
       'renderAdminBatches',
       'adminHeaders'
@@ -341,8 +346,12 @@ describe('upload-first UI structure', () => {
     }
 
     assert.match(app, /fetch\('\/api\/admin\/json-records\/status'/);
+    assert.match(app, /fetch\('\/api\/admin\/datasets\?tool=json'/);
     assert.match(app, /fetch\('\/api\/admin\/json-records\/import'/);
     assert.match(app, /language:\s*adminLanguage\(\)/);
+    assert.match(app, /datasetId:\s*adminDatasetId\(\)/);
+    assert.match(app, /countryRegion:\s*adminCountryRegion\(\)/);
+    assert.match(app, /state\.admin\.datasets\.find\(\(dataset\) => dataset\.isActive\)/);
     assert.match(app, /ADMIN_LANGUAGE_OPTIONS_STORAGE_KEY/);
     assert.match(app, /DEFAULT_ADMIN_LANGUAGE_OPTIONS/);
     assert.match(app, /en_AU/);

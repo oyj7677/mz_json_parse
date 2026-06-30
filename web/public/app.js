@@ -92,11 +92,13 @@ const state = {
     visibleQualifiers: [...STRING_RESOURCE_DEFAULT_QUALIFIERS]
   },
   admin: {
+    datasets: [],
     isLoading: false,
     languageOptions: loadAdminLanguageOptions(),
     records: [],
     query: '',
     recentBatches: [],
+    selectedDatasetId: '',
     selectedFiles: [],
     status: null
   },
@@ -169,6 +171,8 @@ const elements = {
   adminApp: document.querySelector('#adminApp'),
   adminBatchCount: document.querySelector('#adminBatchCount'),
   adminBatchNameInput: document.querySelector('#adminBatchNameInput'),
+  adminCountryRegionInput: document.querySelector('#adminCountryRegionInput'),
+  adminDatasetSelect: document.querySelector('#adminDatasetSelect'),
   adminDescriptionInput: document.querySelector('#adminDescriptionInput'),
   adminHelpButton: document.querySelector('#adminHelpButton'),
   adminImportButton: document.querySelector('#adminImportButton'),
@@ -383,6 +387,15 @@ elements.adminRefreshButton.addEventListener('click', () => {
 
 elements.adminImportButton.addEventListener('click', () => {
   void importAdminJsonFiles();
+});
+
+elements.adminDatasetSelect.addEventListener('change', (event) => {
+  state.admin.selectedDatasetId = event.target.value;
+  renderAdminUploadState();
+});
+
+elements.adminCountryRegionInput.addEventListener('input', () => {
+  renderAdminUploadState();
 });
 
 elements.adminLanguageInput.addEventListener('input', () => {
@@ -824,6 +837,7 @@ async function refreshAdminDashboard() {
   renderAdminDashboard();
 
   try {
+    await loadAdminDatasets();
     await loadAdminStatus();
     await loadAdminRecords();
     setAdminStatus('DB 상태를 불러왔습니다.');
@@ -842,6 +856,14 @@ async function importAdminJsonFiles() {
   }
   if (!adminLanguage()) {
     setAdminImportStatus('Language 값을 선택하거나 입력하세요.');
+    return;
+  }
+  if (!adminDatasetId()) {
+    setAdminImportStatus('Dataset을 선택하세요.');
+    return;
+  }
+  if (!adminCountryRegion()) {
+    setAdminImportStatus('Country/Region 값을 입력하세요.');
     return;
   }
   if (state.admin.selectedFiles.length === 0) {
@@ -865,7 +887,9 @@ async function importAdminJsonFiles() {
     const response = await fetch('/api/admin/json-records/import', {
       body: JSON.stringify({
         batchName: elements.adminBatchNameInput.value,
+        countryRegion: adminCountryRegion(),
         description: elements.adminDescriptionInput.value,
+        datasetId: adminDatasetId(),
         language: adminLanguage(),
         files
       }),
@@ -887,6 +911,24 @@ async function importAdminJsonFiles() {
   } finally {
     state.admin.isLoading = false;
     renderAdminDashboard();
+  }
+}
+
+async function loadAdminDatasets() {
+  const response = await fetch('/api/admin/datasets?tool=json', {
+    headers: adminHeaders(),
+    method: 'GET'
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body.error ?? `Dataset 조회 실패 (${response.status})`);
+  }
+
+  state.admin.datasets = Array.isArray(body.datasets) ? body.datasets : [];
+  const hasSelectedDataset = state.admin.datasets.some((dataset) => dataset.id === state.admin.selectedDatasetId);
+  if (!hasSelectedDataset) {
+    const preferredDataset = state.admin.datasets.find((dataset) => dataset.isActive) ?? state.admin.datasets[0];
+    state.admin.selectedDatasetId = preferredDataset?.id ?? '';
   }
 }
 
@@ -990,6 +1032,7 @@ function renderAdminDashboard() {
   elements.adminRecordCount.textContent = recordCount.toLocaleString();
   elements.adminBatchCount.textContent = batchCount.toLocaleString();
   elements.adminRefreshButton.disabled = state.admin.isLoading;
+  renderAdminDatasetOptions();
   renderAdminUploadState();
   renderAdminRecords();
   renderAdminBatches();
@@ -998,10 +1041,35 @@ function renderAdminDashboard() {
 function renderAdminUploadState() {
   const fileCount = state.admin.selectedFiles.length;
   elements.adminSelectedFileCount.textContent = fileCount.toLocaleString();
-  elements.adminImportButton.disabled = state.admin.isLoading || fileCount === 0 || !adminLanguage();
+  elements.adminDatasetSelect.value = state.admin.selectedDatasetId;
+  elements.adminDatasetSelect.disabled = state.admin.isLoading || !adminKey() || state.admin.datasets.length === 0;
+  elements.adminCountryRegionInput.disabled = state.admin.isLoading;
+  elements.adminImportButton.disabled = state.admin.isLoading
+    || !adminKey()
+    || fileCount === 0
+    || !adminLanguage()
+    || !adminDatasetId()
+    || !adminCountryRegion();
   if (fileCount > 0) {
     elements.adminImportStatus.textContent = `선택된 파일 ${fileCount.toLocaleString()}개`;
   }
+}
+
+function renderAdminDatasetOptions() {
+  const fragment = document.createDocumentFragment();
+  if (state.admin.datasets.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Dataset 없음';
+    fragment.append(option);
+  }
+  for (const dataset of state.admin.datasets) {
+    const option = document.createElement('option');
+    option.value = dataset.id;
+    option.textContent = dataset.isActive ? `${dataset.name} (active)` : dataset.name;
+    fragment.append(option);
+  }
+  elements.adminDatasetSelect.replaceChildren(fragment);
 }
 
 function renderAdminRecords() {
@@ -1153,6 +1221,14 @@ function adminKey() {
 
 function adminLanguage() {
   return normalizeAdminLanguage(elements.adminLanguageInput.value);
+}
+
+function adminDatasetId() {
+  return String(state.admin.selectedDatasetId || elements.adminDatasetSelect.value || '').trim();
+}
+
+function adminCountryRegion() {
+  return String(elements.adminCountryRegionInput.value ?? '').trim();
 }
 
 function adminHeaders({ json = false } = {}) {

@@ -280,6 +280,7 @@ describe('JSON records Neon repository', () => {
     assert.match(deleteCall.text, /returning id, dataset_id/);
     assert.deepEqual(updateCall.params, [JSON_DATASET_ID, 4]);
     assert.match(updateCall.text, /tool_type = 'json'/);
+    assert.doesNotMatch(updateCall.text, /is_active = true/);
   });
 
   it('recomputes affected dataset counts after deleting a batch', async () => {
@@ -316,6 +317,10 @@ describe('JSON records Neon repository', () => {
       [JSON_DATASET_ID, 2],
       [SECOND_JSON_DATASET_ID, 5]
     ]);
+    for (const updateCall of updateCalls) {
+      assert.match(updateCall.text, /tool_type = 'json'/);
+      assert.doesNotMatch(updateCall.text, /is_active = true/);
+    }
   });
 });
 
