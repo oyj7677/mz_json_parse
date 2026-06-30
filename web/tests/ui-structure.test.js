@@ -441,9 +441,19 @@ describe('upload-first UI structure', () => {
     assert.match(app, /fetch\('\/api\/admin\/string-resources\/import'/);
     assert.match(app, /normalizeMappingWorkbook\(workbook\)/);
     assert.match(app, /normalizeStringResourceWorkbook\(workbook,\s*file\.name\)/);
-    assert.match(app, /adminImportStatusElement\(\)\.textContent = message/);
+    assert.match(app, /function setAdminImportStatus\(message,\s*tool = state\.adminDb\.activeTool\)/);
+    assert.match(app, /adminImportStatusElement\(tool\)\.textContent = message/);
+    assert.match(app, /function adminImportStatusElement\(tool = state\.adminDb\.activeTool\)/);
     assert.match(app, /adminMappingImportStatus:\s*document\.querySelector\('#adminMappingImportStatus'\)/);
     assert.match(app, /adminStringResourceImportStatus:\s*document\.querySelector\('#adminStringResourceImportStatus'\)/);
+    assert.match(app, /setAdminImportStatus\('Admin key is required\.',\s*'mapping'\)/);
+    assert.match(app, /setAdminImportStatus\('Parsing mapping workbook\.',\s*'mapping'\)/);
+    assert.match(app, /setAdminImportStatus\(`Mapping import complete: \$\{body\.insertedCount \?\? 0\} rows\.`,\s*'mapping'\)/);
+    assert.match(app, /setAdminImportStatus\(error instanceof Error \? error\.message : String\(error\),\s*'mapping'\)/);
+    assert.match(app, /setAdminImportStatus\('Admin key is required\.',\s*'stringResource'\)/);
+    assert.match(app, /setAdminImportStatus\(`Parsing \$\{files\.length\} string resource workbook\(s\)\.`,\s*'stringResource'\)/);
+    assert.match(app, /setAdminImportStatus\(`String Resource import complete: \$\{body\.insertedCount \?\? 0\} rows\.`,\s*'stringResource'\)/);
+    assert.match(app, /setAdminImportStatus\(error instanceof Error \? error\.message : String\(error\),\s*'stringResource'\)/);
   });
 
   it('declares local SheetJS vendor loading for Excel parsing', async () => {

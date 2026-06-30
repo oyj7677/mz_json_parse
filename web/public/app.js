@@ -1089,23 +1089,23 @@ async function importAdminJsonFiles() {
 
 async function uploadAdminMappingDataset() {
   if (!adminKey()) {
-    setAdminImportStatus('Admin key is required.');
+    setAdminImportStatus('Admin key is required.', 'mapping');
     return;
   }
   const datasetId = adminDbDatasetId();
   if (!datasetId) {
-    setAdminImportStatus('Dataset is required.');
+    setAdminImportStatus('Dataset is required.', 'mapping');
     return;
   }
   const file = elements.adminMappingFileInput.files?.[0];
   if (!file) {
-    setAdminImportStatus('Mapping workbook is required.');
+    setAdminImportStatus('Mapping workbook is required.', 'mapping');
     return;
   }
 
   state.admin.isLoading = true;
   renderAdminDashboard();
-  setAdminImportStatus('Parsing mapping workbook.');
+  setAdminImportStatus('Parsing mapping workbook.', 'mapping');
 
   try {
     const workbook = await parseMappingWorkbookFile(file);
@@ -1136,9 +1136,9 @@ async function uploadAdminMappingDataset() {
     }
 
     elements.adminMappingFileInput.value = '';
-    setAdminImportStatus(`Mapping import complete: ${body.insertedCount ?? 0} rows.`);
+    setAdminImportStatus(`Mapping import complete: ${body.insertedCount ?? 0} rows.`, 'mapping');
   } catch (error) {
-    setAdminImportStatus(error instanceof Error ? error.message : String(error));
+    setAdminImportStatus(error instanceof Error ? error.message : String(error), 'mapping');
   } finally {
     state.admin.isLoading = false;
     renderAdminDashboard();
@@ -1147,23 +1147,23 @@ async function uploadAdminMappingDataset() {
 
 async function uploadAdminStringResourceDataset() {
   if (!adminKey()) {
-    setAdminImportStatus('Admin key is required.');
+    setAdminImportStatus('Admin key is required.', 'stringResource');
     return;
   }
   const datasetId = adminDbDatasetId();
   if (!datasetId) {
-    setAdminImportStatus('Dataset is required.');
+    setAdminImportStatus('Dataset is required.', 'stringResource');
     return;
   }
   const files = Array.from(elements.adminStringResourceFileInput.files ?? []);
   if (files.length === 0) {
-    setAdminImportStatus('String Resource workbook is required.');
+    setAdminImportStatus('String Resource workbook is required.', 'stringResource');
     return;
   }
 
   state.admin.isLoading = true;
   renderAdminDashboard();
-  setAdminImportStatus(`Parsing ${files.length} string resource workbook(s).`);
+  setAdminImportStatus(`Parsing ${files.length} string resource workbook(s).`, 'stringResource');
 
   try {
     const rows = [];
@@ -1207,9 +1207,9 @@ async function uploadAdminStringResourceDataset() {
     }
 
     elements.adminStringResourceFileInput.value = '';
-    setAdminImportStatus(`String Resource import complete: ${body.insertedCount ?? 0} rows.`);
+    setAdminImportStatus(`String Resource import complete: ${body.insertedCount ?? 0} rows.`, 'stringResource');
   } catch (error) {
-    setAdminImportStatus(error instanceof Error ? error.message : String(error));
+    setAdminImportStatus(error instanceof Error ? error.message : String(error), 'stringResource');
   } finally {
     state.admin.isLoading = false;
     renderAdminDashboard();
@@ -1662,15 +1662,16 @@ function setAdminStatus(message) {
   elements.adminStatus.textContent = message;
 }
 
-function setAdminImportStatus(message) {
-  adminImportStatusElement().textContent = message;
+function setAdminImportStatus(message, tool = state.adminDb.activeTool) {
+  adminImportStatusElement(tool).textContent = message;
 }
 
-function adminImportStatusElement() {
-  if (state.adminDb.activeTool === 'mapping') {
+function adminImportStatusElement(tool = state.adminDb.activeTool) {
+  const normalizedTool = normalizeAdminTool(tool);
+  if (normalizedTool === 'mapping') {
     return elements.adminMappingImportStatus;
   }
-  if (state.adminDb.activeTool === 'stringResource') {
+  if (normalizedTool === 'stringResource') {
     return elements.adminStringResourceImportStatus;
   }
   return elements.adminImportStatus;
