@@ -20,6 +20,13 @@ import {
 } from './api/mapping-table-core.js';
 import { getMappingTableRepository } from './api/mapping-table-repository.js';
 import {
+  handleAdminStringResourcesImportRequest,
+  handleStringResourceDetailRequest,
+  handleStringResourceLocalesRequest,
+  handleStringResourceRowsRequest
+} from './api/string-resources-core.js';
+import { getStringResourcesRepository } from './api/string-resources-repository.js';
+import {
   handleActiveDatasetRequest,
   handleAdminDatasetActiveRequest,
   handleAdminDatasetDeleteRequest,
@@ -51,7 +58,8 @@ export function createAppServer({
   datasetsRepository,
   env = process.env,
   jsonRecordsRepository,
-  mappingTableRepository
+  mappingTableRepository,
+  stringResourcesRepository
 } = {}) {
   return createServer(async (request, response) => {
     try {
@@ -65,6 +73,10 @@ export function createAppServer({
       }
 
       if (await handleMappingTableApi(request, response, { env, mappingTableRepository })) {
+        return;
+      }
+
+      if (await handleStringResourcesApi(request, response, { env, stringResourcesRepository })) {
         return;
       }
 
@@ -176,6 +188,37 @@ async function handleMappingTableApi(request, response, { env, mappingTableRepos
     const repository = mappingTableRepository ?? (() => getMappingTableRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminMappingImportRequest(apiRequest, { env, repository });
+  } else {
+    return false;
+  }
+
+  await sendFetchResponse(response, apiResponse);
+  return true;
+}
+
+async function handleStringResourcesApi(request, response, { env, stringResourcesRepository }) {
+  const pathname = getPathname(request);
+  let apiResponse;
+
+  if (pathname === '/api/string-resource-rows') {
+    const repository = stringResourcesRepository ?? (() => getStringResourcesRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleStringResourceRowsRequest(apiRequest, { repository });
+  } else if (pathname === '/api/string-resource-locales') {
+    const repository = stringResourcesRepository ?? (() => getStringResourcesRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleStringResourceLocalesRequest(apiRequest, { repository });
+  } else if (pathname.startsWith('/api/string-resource-rows/')) {
+    const repository = stringResourcesRepository ?? (() => getStringResourcesRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleStringResourceDetailRequest(apiRequest, {
+      id: decodeURIComponent(pathname.replace('/api/string-resource-rows/', '')),
+      repository
+    });
+  } else if (pathname === '/api/admin/string-resources/import') {
+    const repository = stringResourcesRepository ?? (() => getStringResourcesRepository(env));
+    const apiRequest = await toFetchRequest(request);
+    apiResponse = await handleAdminStringResourcesImportRequest(apiRequest, { env, repository });
   } else {
     return false;
   }

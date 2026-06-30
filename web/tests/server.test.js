@@ -11,6 +11,8 @@ import { createAppServer } from '../server.js';
 
 const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
 const MAPPING_DATASET_ID = '00000000-0000-4000-8000-000000000101';
+const STRING_RESOURCE_DATASET_ID = '00000000-0000-4000-8000-000000000201';
+const STRING_RESOURCE_ROW_ID = '00000000-0000-4000-8000-000000000301';
 
 describe('translation server helpers', () => {
   it('builds a keyless Google Translate URL for English filename translation', () => {
@@ -265,6 +267,85 @@ describe('translation server helpers', () => {
     }
   });
 
+  it('serves local string resource API routes with injected repository dependencies', async () => {
+    const repository = {
+      async importRows(payload) {
+        assert.equal(payload.datasetId, STRING_RESOURCE_DATASET_ID);
+        assert.equal(payload.rows.length, 1);
+        assert.equal(payload.rows[0].resourceId, 'weather_title');
+        return {
+          datasetId: payload.datasetId,
+          insertedCount: 1,
+          skippedCount: 0
+        };
+      },
+      async searchRows({ datasetId, query }) {
+        assert.equal(datasetId, STRING_RESOURCE_DATASET_ID);
+        assert.equal(query, 'weather');
+        return {
+          rows: [stringResourceRow({ id: STRING_RESOURCE_ROW_ID, datasetId })],
+          total: 1
+        };
+      },
+      async listLocales(datasetId) {
+        assert.equal(datasetId, STRING_RESOURCE_DATASET_ID);
+        return ['ko', 'en-rUS'];
+      },
+      async getRowById(id) {
+        assert.equal(id, STRING_RESOURCE_ROW_ID);
+        return stringResourceRow({ id, datasetId: STRING_RESOURCE_DATASET_ID });
+      }
+    };
+    const server = createAppServer({
+      env: { JSON_ADMIN_KEY: 'secret' },
+      stringResourcesRepository: repository
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    try {
+      const { port } = server.address();
+      const baseUrl = `http://127.0.0.1:${port}`;
+      const searchResponse = await fetch(`${baseUrl}/api/string-resource-rows?datasetId=${STRING_RESOURCE_DATASET_ID}&q=weather`);
+      const searchBody = await searchResponse.json();
+
+      const localesResponse = await fetch(`${baseUrl}/api/string-resource-locales?datasetId=${STRING_RESOURCE_DATASET_ID}`);
+      const localesBody = await localesResponse.json();
+
+      const detailResponse = await fetch(`${baseUrl}/api/string-resource-rows/${STRING_RESOURCE_ROW_ID}`);
+      const detailBody = await detailResponse.json();
+
+      const importResponse = await fetch(`${baseUrl}/api/admin/string-resources/import`, {
+        body: JSON.stringify({
+          datasetId: STRING_RESOURCE_DATASET_ID,
+          rows: [stringResourceRow()]
+        }),
+        headers: { 'x-admin-key': 'secret' },
+        method: 'POST'
+      });
+      const importBody = await importResponse.json();
+
+      assert.equal(searchResponse.status, 200);
+      assert.equal(searchBody.rows[0].resourceId, 'weather_title');
+      assert.equal(localesResponse.status, 200);
+      assert.deepEqual(localesBody.locales, ['ko', 'en-rUS']);
+      assert.equal(detailResponse.status, 200);
+      assert.equal(detailBody.row.id, STRING_RESOURCE_ROW_ID);
+      assert.equal(importResponse.status, 200);
+      assert.equal(importBody.insertedCount, 1);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    }
+  });
+
   it('keeps local JSON admin routes auth-first before loading repository dependencies', async () => {
     let repositoryLoads = 0;
     const server = createAppServer({
@@ -438,3 +519,19 @@ describe('translation server helpers', () => {
     assert.equal(body.error, 'Method not allowed.');
   });
 });
+
+function stringResourceRow(overrides = {}) {
+  return {
+    id: 'strings.xlsx:Strings:7',
+    fileName: 'strings.xlsx',
+    sheetName: 'Strings',
+    rowNumber: 7,
+    resourceId: 'weather_title',
+    idFields: { LID: 'weather_title' },
+    languages: { ko: '날씨', 'en-rUS': 'Weather' },
+    duplicateLanguages: {},
+    metadata: { screen: 'home' },
+    originalValues: { LID: 'weather_title', Korean: '날씨' },
+    ...overrides
+  };
+}

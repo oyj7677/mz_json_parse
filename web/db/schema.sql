@@ -151,3 +151,28 @@ create index if not exists mapping_rows_search_idx
     )
   )
   where deleted_at is null;
+
+create table if not exists string_resource_rows (
+  id uuid primary key default gen_random_uuid(),
+  dataset_id uuid not null references datasets(id) on delete cascade,
+  source_filename text not null default '',
+  sheet_name text not null default '',
+  row_number integer,
+  resource_id text not null default '',
+  locale_values jsonb not null default '{}'::jsonb,
+  id_fields jsonb not null default '{}'::jsonb,
+  duplicate_languages jsonb not null default '{}'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
+  raw_row jsonb not null default '{}'::jsonb,
+  search_text text not null default '',
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create index if not exists string_resource_rows_dataset_resource_idx
+  on string_resource_rows (dataset_id, resource_id, source_filename, sheet_name, row_number)
+  where deleted_at is null;
+
+create index if not exists string_resource_rows_search_idx
+  on string_resource_rows using gin (to_tsvector('simple', search_text))
+  where deleted_at is null;
