@@ -214,6 +214,10 @@ const elements = {
   adminHelpButton: document.querySelector('#adminHelpButton'),
   adminImportButton: document.querySelector('#adminImportButton'),
   adminImportStatus: document.querySelector('#adminImportStatus'),
+  adminUploadProgress: document.querySelector('#adminUploadProgress'),
+  adminUploadProgressBar: document.querySelector('#adminUploadProgressBar'),
+  adminUploadProgressFill: document.querySelector('#adminUploadProgressFill'),
+  adminUploadProgressText: document.querySelector('#adminUploadProgressText'),
   adminJsonTab: document.querySelector('#adminJsonTab'),
   adminJsonUploadPanel: document.querySelector('#adminJsonUploadPanel'),
   adminJsonFileInput: document.querySelector('#adminJsonFileInput'),
@@ -434,6 +438,11 @@ elements.backToHubFromStringResourceButton.addEventListener('click', () => {
 
 elements.adminJsonFileInput.addEventListener('change', () => {
   state.admin.selectedFiles = Array.from(elements.adminJsonFileInput.files ?? []);
+  if (state.admin.selectedFiles.length === 0) {
+    hideAdminUploadProgress();
+  } else {
+    setAdminUploadProgress(0, `선택된 파일 ${state.admin.selectedFiles.length.toLocaleString()}개`);
+  }
   renderAdminUploadState();
 });
 
@@ -895,7 +904,7 @@ function showToolHub() {
   elements.stringResourceApp.hidden = true;
   elements.jsonEditorApp.hidden = true;
   elements.adminApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active', 'admin-active');
   elements.openFormatterButton.focus();
 }
 
@@ -907,7 +916,7 @@ function showFormatterTool() {
   elements.stringResourceApp.hidden = true;
   elements.jsonEditorApp.hidden = true;
   elements.adminApp.hidden = true;
-  document.body.classList.remove('mapping-active', 'json-editor-active');
+  document.body.classList.remove('mapping-active', 'json-editor-active', 'admin-active');
   document.body.classList.add('formatter-active');
   elements.backToHubButton.focus();
 }
@@ -924,7 +933,7 @@ function showExplorerTool() {
   elements.stringResourceApp.hidden = true;
   elements.jsonEditorApp.hidden = true;
   elements.adminApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active', 'admin-active');
   elements.backToHubFromExplorerButton.focus();
   if (state.explorer.sourceMode === 'local' && hasLocalExplorerRows()) {
     void loadExplorerDatasets({ autoLoad: false });
@@ -946,7 +955,7 @@ function showMappingTool() {
   elements.stringResourceApp.hidden = true;
   elements.jsonEditorApp.hidden = true;
   elements.adminApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'json-editor-active');
+  document.body.classList.remove('formatter-active', 'json-editor-active', 'admin-active');
   document.body.classList.add('mapping-active');
   elements.mappingGroupSearchInput.focus();
   if (state.mapping.sourceMode === 'static') {
@@ -967,7 +976,7 @@ function showStringResourceTool() {
   elements.stringResourceApp.hidden = false;
   elements.jsonEditorApp.hidden = true;
   elements.adminApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
+  document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active', 'admin-active');
   elements.stringResourceSearchInput.focus();
   if (state.stringResource.sourceMode === 'local' && hasLocalStringResourceRows()) {
     void loadStringResourceDatasets({ autoLoad: false });
@@ -990,7 +999,7 @@ function showJsonEditorTool() {
   elements.stringResourceApp.hidden = true;
   elements.jsonEditorApp.hidden = false;
   elements.adminApp.hidden = true;
-  document.body.classList.remove('formatter-active', 'mapping-active');
+  document.body.classList.remove('formatter-active', 'mapping-active', 'admin-active');
   document.body.classList.add('json-editor-active');
 
   if (!jsonEditorToolState) {
@@ -1013,6 +1022,7 @@ function showAdminTool() {
   elements.jsonEditorApp.hidden = true;
   elements.adminApp.hidden = false;
   document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
+  document.body.classList.add('admin-active');
   elements.adminKeyInput.focus();
   renderAdminDashboard();
 }
@@ -1143,6 +1153,49 @@ async function setAdminDatasetActive(id) {
   }
 }
 
+async function deleteAdminDataset(id) {
+  if (!adminKey()) {
+    setAdminStatus('관리자 키를 입력하세요.');
+    return;
+  }
+
+  const dataset = (state.adminDb.activeTool === 'json' ? state.admin.datasets : state.adminDb.datasets)
+    .find((entry) => String(entry.id) === String(id));
+  const datasetName = dataset?.name || 'selected dataset';
+  if (!window.confirm(`${datasetName} dataset을 삭제할까요? 연결된 테스트 데이터도 검색 대상에서 제외됩니다.`)) {
+    return;
+  }
+
+  state.admin.isLoading = true;
+  renderAdminDashboard();
+
+  try {
+    const response = await fetch(`/api/admin/datasets/${encodeURIComponent(id)}`, {
+      headers: adminHeaders({ json: true }),
+      method: 'DELETE'
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error ?? `Dataset delete failed (${response.status})`);
+    }
+
+    if (String(state.adminDb.selectedDatasetIds[state.adminDb.activeTool]) === String(id)) {
+      state.adminDb.selectedDatasetIds[state.adminDb.activeTool] = '';
+    }
+    if (String(state.admin.selectedDatasetId) === String(id)) {
+      state.admin.selectedDatasetId = '';
+    }
+
+    await loadAdminDatasets(state.adminDb.activeTool);
+    setAdminStatus(`Dataset deleted: ${body.deletedCount ?? 0}, rows ${body.rowDeletedCount ?? 0}`);
+  } catch (error) {
+    setAdminStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.admin.isLoading = false;
+    renderAdminDashboard();
+  }
+}
+
 async function uploadAdminJsonDatasetFiles() {
   await importAdminJsonFiles();
 }
@@ -1172,16 +1225,30 @@ async function importAdminJsonFiles() {
   state.admin.isLoading = true;
   renderAdminDashboard();
   setAdminImportStatus(`파일 ${state.admin.selectedFiles.length}개를 읽는 중입니다.`, 'json');
+  setAdminUploadProgress(0, `0/${state.admin.selectedFiles.length.toLocaleString()} 파일 읽기 준비`);
 
   try {
     const files = [];
-    for (const file of state.admin.selectedFiles) {
+    const totalFiles = state.admin.selectedFiles.length;
+    for (const [index, file] of state.admin.selectedFiles.entries()) {
+      updateAdminUploadProgress({
+        label: `${index + 1}/${totalFiles.toLocaleString()} 읽는 중 - ${file.name}`,
+        percent: Math.round((index / totalFiles) * 70)
+      });
       files.push({
         filename: file.name,
         text: await file.text()
       });
+      updateAdminUploadProgress({
+        label: `${index + 1}/${totalFiles.toLocaleString()} 읽기 완료 - ${file.name}`,
+        percent: Math.round(((index + 1) / totalFiles) * 70)
+      });
     }
 
+    updateAdminUploadProgress({
+      label: 'DB로 전송 중입니다.',
+      percent: 85
+    });
     const response = await fetch('/api/admin/json-records/import', {
       body: JSON.stringify({
         batchName: elements.adminBatchNameInput.value,
@@ -1200,12 +1267,20 @@ async function importAdminJsonFiles() {
     }
 
     setAdminImportStatus(`업로드 완료: 저장 ${body.insertedCount ?? 0}개, 중복 ${body.skippedCount ?? 0}개`, 'json');
+    updateAdminUploadProgress({
+      label: `업로드 완료: 저장 ${body.insertedCount ?? 0}개, 중복 ${body.skippedCount ?? 0}개`,
+      percent: 100
+    });
     rememberAdminLanguageOption(adminLanguage());
     elements.adminJsonFileInput.value = '';
     state.admin.selectedFiles = [];
     await refreshAdminDashboard();
   } catch (error) {
     setAdminImportStatus(error instanceof Error ? error.message : String(error), 'json');
+    updateAdminUploadProgress({
+      label: error instanceof Error ? `업로드 실패: ${error.message}` : '업로드 실패',
+      percent: 100
+    });
   } finally {
     state.admin.isLoading = false;
     renderAdminDashboard();
@@ -1502,7 +1577,7 @@ function renderAdminUploadState() {
     || !adminLanguage()
     || !adminDatasetId()
     || !adminCountryRegion();
-  if (fileCount > 0) {
+  if (fileCount > 0 && !state.admin.isLoading) {
     elements.adminImportStatus.textContent = `선택된 파일 ${fileCount.toLocaleString()}개`;
   }
 }
@@ -1575,6 +1650,9 @@ function renderAdminDatasetList() {
     ].filter(Boolean).join(' | ');
     text.append(title, meta);
 
+    const actions = document.createElement('div');
+    actions.className = 'admin-dataset-actions';
+
     const action = document.createElement('button');
     action.className = 'ghost-button';
     action.type = 'button';
@@ -1584,7 +1662,17 @@ function renderAdminDatasetList() {
       void setAdminDatasetActive(dataset.id);
     });
 
-    row.append(text, action);
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'ghost-button danger-action';
+    deleteButton.type = 'button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.disabled = state.admin.isLoading || !adminKey();
+    deleteButton.addEventListener('click', () => {
+      void deleteAdminDataset(dataset.id);
+    });
+
+    actions.append(action, deleteButton);
+    row.append(text, actions);
     fragment.append(row);
   }
 
@@ -1789,6 +1877,31 @@ function setAdminStatus(message) {
 
 function setAdminImportStatus(message, tool = state.adminDb.activeTool) {
   adminImportStatusElement(tool).textContent = message;
+}
+
+function setAdminUploadProgress(percent, label) {
+  updateAdminUploadProgress({ label, percent });
+}
+
+function hideAdminUploadProgress() {
+  if (!elements.adminUploadProgress) {
+    return;
+  }
+  elements.adminUploadProgress.hidden = true;
+  elements.adminUploadProgressBar.setAttribute('aria-valuenow', '0');
+  elements.adminUploadProgressFill.style.setProperty('--admin-upload-progress', '0%');
+  elements.adminUploadProgressText.textContent = '0%';
+}
+
+function updateAdminUploadProgress({ label = '', percent = 0 } = {}) {
+  if (!elements.adminUploadProgress) {
+    return;
+  }
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  elements.adminUploadProgress.hidden = false;
+  elements.adminUploadProgressBar.setAttribute('aria-valuenow', String(safePercent));
+  elements.adminUploadProgressFill.style.setProperty('--admin-upload-progress', `${safePercent}%`);
+  elements.adminUploadProgressText.textContent = label ? `${safePercent}% · ${label}` : `${safePercent}%`;
 }
 
 function adminImportStatusElement(tool = state.adminDb.activeTool) {

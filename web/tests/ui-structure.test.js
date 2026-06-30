@@ -282,6 +282,10 @@ describe('upload-first UI structure', () => {
       'adminJsonFileInput',
       'adminImportButton',
       'adminImportStatus',
+      'adminUploadProgress',
+      'adminUploadProgressBar',
+      'adminUploadProgressFill',
+      'adminUploadProgressText',
       'adminRecordCount',
       'adminBatchCount',
       'adminSelectedFileCount',
@@ -300,6 +304,9 @@ describe('upload-first UI structure', () => {
       '.admin-table',
       '.admin-batch-list',
       '.admin-batch-row',
+      '.admin-upload-progress',
+      '.admin-progress-track',
+      '.admin-progress-fill',
       '.admin-language-row',
       '.danger-action'
     ]) {
@@ -313,6 +320,10 @@ describe('upload-first UI structure', () => {
     const adminMetricGridRule = css.match(/\.admin-metric-grid\s*{[^}]+}/)?.[0] ?? '';
     const adminUploadGridRule = css.match(/\.admin-upload-grid\s*{[^}]+}/)?.[0] ?? '';
     const adminUploadStripRule = css.match(/\.admin-upload-panel \.upload-strip\s*{[^}]+}/)?.[0] ?? '';
+    const adminUploadProgressRule = css.match(/\.admin-upload-progress\s*{[^}]+}/)?.[0] ?? '';
+    const adminProgressFillRule = css.match(/\.admin-progress-fill\s*{[^}]+}/)?.[0] ?? '';
+    const adminActiveShellRule = css.match(/body\.admin-active \.app-shell\s*{[^}]+}/)?.[0] ?? '';
+    const adminActiveWorkspaceRule = css.match(/body\.admin-active \.admin-workspace\s*{[^}]+}/)?.[0] ?? '';
     const adminRecordsHeaderRule = css.match(/\.admin-records-panel \.panel-header\s*{[^}]+}/)?.[0] ?? '';
     assert.match(recordsPanelRule, /grid-row:\s*3/);
     assert.match(batchesPanelRule, /grid-row:\s*3/);
@@ -322,6 +333,11 @@ describe('upload-first UI structure', () => {
     assert.match(adminUploadGridRule, /gap:\s*12px/);
     assert.match(adminUploadStripRule, /margin-top:\s*14px/);
     assert.match(adminUploadStripRule, /margin-bottom:\s*10px/);
+    assert.match(adminUploadProgressRule, /margin-top:\s*10px/);
+    assert.match(adminProgressFillRule, /width:\s*var\(--admin-upload-progress,\s*0%\)/);
+    assert.match(adminActiveShellRule, /overflow:\s*hidden/);
+    assert.match(adminActiveWorkspaceRule, /overflow-y:\s*auto/);
+    assert.match(adminActiveWorkspaceRule, /scrollbar-gutter:\s*stable/);
     assert.match(adminRecordsHeaderRule, /margin-bottom:\s*14px/);
 
     for (const contract of [
@@ -340,6 +356,8 @@ describe('upload-first UI structure', () => {
       'adminCountryRegion',
       'renderAdminRecords',
       'renderAdminBatches',
+      'setAdminUploadProgress',
+      'hideAdminUploadProgress',
       'adminHeaders'
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
@@ -348,6 +366,7 @@ describe('upload-first UI structure', () => {
     assert.match(app, /fetch\('\/api\/admin\/json-records\/status'/);
     assert.match(app, /fetch\('\/api\/admin\/datasets\?tool=json'/);
     assert.match(app, /fetch\('\/api\/admin\/json-records\/import'/);
+    assert.match(app, /updateAdminUploadProgress\(\{/);
     assert.match(app, /language:\s*adminLanguage\(\)/);
     assert.match(app, /datasetId:\s*adminDatasetId\(\)/);
     assert.match(app, /countryRegion:\s*adminCountryRegion\(\)/);
@@ -418,6 +437,7 @@ describe('upload-first UI structure', () => {
       'loadAdminDatasets',
       'createAdminDataset',
       'setAdminDatasetActive',
+      'deleteAdminDataset',
       'uploadAdminJsonDatasetFiles',
       'uploadAdminMappingDataset',
       'uploadAdminStringResourceDataset',
@@ -439,6 +459,9 @@ describe('upload-first UI structure', () => {
     assert.match(app, /fetch\(`\/api\/admin\/datasets\?tool=\$\{encodeURIComponent\(adminDatasetToolType\(normalizedTool\)\)\}`/);
     assert.match(app, /fetch\('\/api\/admin\/datasets'/);
     assert.match(app, /fetch\(`\/api\/admin\/datasets\/\$\{encodeURIComponent\(id\)\}\/active`/);
+    assert.match(app, /fetch\(`\/api\/admin\/datasets\/\$\{encodeURIComponent\(id\)\}`/);
+    assert.match(app, /method:\s*'DELETE'/);
+    assert.match(app, /deleteButton\.textContent = 'Delete'/);
     assert.match(app, /fetch\('\/api\/admin\/mapping-table\/import'/);
     assert.match(app, /fetch\('\/api\/admin\/string-resources\/import'/);
     assert.match(app, /normalizeMappingWorkbook\(workbook\)/);
@@ -548,7 +571,7 @@ describe('upload-first UI structure', () => {
     assert.match(slotTableRule, /flex:\s*1 1 auto/);
     assert.match(slotTableRule, /max-height:\s*none/);
     assert.match(app, /classList\.add\('mapping-active'\)/);
-    assert.match(app, /classList\.remove\('formatter-active', 'mapping-active'\)/);
+    assert.match(app, /classList\.remove\('formatter-active', 'mapping-active', 'admin-active'\)/);
     assert.match(mappingActiveAppRule, /height:\s*auto/);
     assert.match(mappingActiveAppRule, /overflow:\s*visible/);
     assert.match(mappingActiveWorkspaceRule, /overflow:\s*visible/);

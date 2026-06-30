@@ -132,6 +132,34 @@ describe('datasets repository', () => {
     );
   });
 
+  it('soft-deletes a dataset and its tool rows with one parameterized query', async () => {
+    const calls = [];
+    const sql = {
+      async query(text, params = []) {
+        calls.push({ text, params });
+        return [{
+          dataset_count: 1,
+          json_count: 0,
+          mapping_count: 1992,
+          string_resource_count: 0
+        }];
+      }
+    };
+    const repository = createDatasetsRepository(sql);
+    const result = await repository.deleteDataset('dataset-1');
+
+    assert.deepEqual(result, {
+      deletedCount: 1,
+      rowDeletedCount: 1992
+    });
+    assert.match(calls[0].text, /with deleted_dataset as/);
+    assert.match(calls[0].text, /update datasets/);
+    assert.match(calls[0].text, /update json_records/);
+    assert.match(calls[0].text, /update mapping_rows/);
+    assert.match(calls[0].text, /update string_resource_rows/);
+    assert.deepEqual(calls[0].params, ['dataset-1']);
+  });
+
   it('updates dataset counts without overwriting metadata by default', async () => {
     const calls = [];
     const sql = {

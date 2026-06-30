@@ -738,6 +738,19 @@
             <input id="adminJsonFileInput" type="file" accept=".json,application/json" multiple>
             <span id="adminImportStatus" aria-live="polite">선택된 파일이 없습니다.</span>
           </div>
+          <div class="admin-upload-progress" id="adminUploadProgress" role="status" aria-live="polite" hidden>
+            <div
+              class="admin-progress-track"
+              id="adminUploadProgressBar"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <span class="admin-progress-fill" id="adminUploadProgressFill"></span>
+            </div>
+            <span class="admin-progress-text" id="adminUploadProgressText">0%</span>
+          </div>
           <button class="primary-action" id="adminImportButton" type="button" disabled>
             DB에 업로드
           </button>

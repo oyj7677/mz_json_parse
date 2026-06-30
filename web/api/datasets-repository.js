@@ -66,14 +66,59 @@ export function createDatasetsRepository(sql) {
 
     async deleteDataset(id) {
       const rows = await sql.query(`
-        update datasets
-        set deleted_at = now(),
-            is_active = false
-        where id = $1
-          and deleted_at is null
-        returning id
+        with deleted_dataset as (
+          update datasets
+          set deleted_at = now(),
+              is_active = false
+          where id = $1
+            and deleted_at is null
+          returning id, tool_type
+        ),
+        deleted_json_rows as (
+          update json_records
+          set deleted_at = now()
+          where dataset_id in (
+              select id
+              from deleted_dataset
+              where tool_type = 'json'
+            )
+            and deleted_at is null
+          returning id
+        ),
+        deleted_mapping_rows as (
+          update mapping_rows
+          set deleted_at = now()
+          where dataset_id in (
+              select id
+              from deleted_dataset
+              where tool_type = 'mapping_table'
+            )
+            and deleted_at is null
+          returning id
+        ),
+        deleted_string_resource_rows as (
+          update string_resource_rows
+          set deleted_at = now()
+          where dataset_id in (
+              select id
+              from deleted_dataset
+              where tool_type = 'string_resource'
+            )
+            and deleted_at is null
+          returning id
+        )
+        select
+          (select count(*)::int from deleted_dataset) as dataset_count,
+          (select count(*)::int from deleted_json_rows) as json_count,
+          (select count(*)::int from deleted_mapping_rows) as mapping_count,
+          (select count(*)::int from deleted_string_resource_rows) as string_resource_count
       `, [id]);
-      return { deletedCount: rows.length };
+      const result = rows[0] ?? {};
+      const deletedCount = Number(result.dataset_count ?? 0);
+      const rowDeletedCount = Number(result.json_count ?? 0)
+        + Number(result.mapping_count ?? 0)
+        + Number(result.string_resource_count ?? 0);
+      return { deletedCount, rowDeletedCount };
     },
 
     async getActiveDataset(toolType) {
