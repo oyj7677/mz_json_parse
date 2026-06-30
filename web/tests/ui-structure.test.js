@@ -360,6 +360,8 @@ describe('upload-first UI structure', () => {
     assert.match(app, /fetch\(`\/api\/admin\/json-records\/\$\{encodeURIComponent\(id\)\}`/);
     assert.match(app, /fetch\(`\/api\/admin\/json-batches\/\$\{encodeURIComponent\(id\)\}`/);
     assert.match(app, /'x-admin-key': adminKey\(\)/);
+    assert.doesNotMatch(app, /愿由ъ옄 \?ㅻ\? \?낅젰\?섏꽭\?\?/);
+    assert.doesNotMatch(app, /\?온\?귐딆쁽/);
     assert.match(html, /id="adminHelpButton"[\s\S]*aria-controls="helpOverlay"/);
     assert.match(app, /adminHelpSteps/);
     assert.match(app, /openHelp\(adminHelpSteps,\s*elements\.adminHelpButton\)/);
@@ -854,6 +856,16 @@ describe('upload-first UI structure', () => {
     assert.match(app, /requestToken !== stringResourceDbRowsRequestSeq/);
     assert.match(app, /loadExplorerDatasets[\s\S]*catch \(error\)[\s\S]*clearDbExplorerRows\(\)/);
     assert.match(app, /loadStringResourceDatasets[\s\S]*catch \(error\)[\s\S]*clearDbStringResourceRows\(\)/);
+    const dbSearchFunction = app.slice(
+      app.indexOf('async function searchDbExplorerRecords()'),
+      app.indexOf('function createDbExplorerItem(record)')
+    );
+    const dbSearchCatch = dbSearchFunction.slice(
+      dbSearchFunction.indexOf('} catch (error)'),
+      dbSearchFunction.indexOf('} finally')
+    );
+    assert.match(dbSearchCatch, /state\.explorer\.items = state\.explorer\.items\.filter\(\(item\) => item\.sourceType !== 'db'\)/);
+    assert.doesNotMatch(dbSearchCatch, /state\.explorer\.items = \[\]/);
   });
 
   it('hides explorer suggestions when the user leaves search assistance mode', async () => {

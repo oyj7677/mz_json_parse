@@ -1062,7 +1062,7 @@ async function setAdminTool(tool) {
 
 async function createAdminDataset() {
   if (!adminKey()) {
-    setAdminStatus('愿由ъ옄 ?ㅻ? ?낅젰?섏꽭??');
+    setAdminStatus('관리자 키를 입력하세요.');
     return;
   }
 
@@ -1112,7 +1112,7 @@ async function createAdminDataset() {
 
 async function setAdminDatasetActive(id) {
   if (!adminKey()) {
-    setAdminStatus('愿由ъ옄 ?ㅻ? ?낅젰?섏꽭??');
+    setAdminStatus('관리자 키를 입력하세요.');
     return;
   }
 
@@ -2494,7 +2494,7 @@ async function searchDbExplorerRecords() {
     if (requestToken !== explorerDbSearchRequestSeq) {
       return;
     }
-    state.explorer.items = [];
+    state.explorer.items = state.explorer.items.filter((item) => item.sourceType !== 'db');
     state.explorer.errors = [error instanceof Error ? error.message : String(error)];
     setExplorerUploadStatus(error instanceof Error ? error.message : String(error));
   } finally {
