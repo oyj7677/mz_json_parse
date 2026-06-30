@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildJsonRecordFromUpload,
   normalizeJsonImportPayload
-} from '../api/json-records-core.js';
+} from '../server-api/json-records-core.js';
 
 const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
 

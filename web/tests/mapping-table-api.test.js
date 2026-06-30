@@ -1,11 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAdminMappingImportRoute } from '../api/admin/mapping-table/import.js';
-import { createMappingRowsRoute } from '../api/mapping-rows.js';
+import { createAdminMappingImportRoute } from '../server-api/admin/mapping-table/import.js';
+import { createMappingRowsRoute } from '../server-api/mapping-rows.js';
 import {
   handleAdminMappingImportRequest,
   handleMappingRowsRequest
-} from '../api/mapping-table-core.js';
+} from '../server-api/mapping-table-core.js';
 
 const DATASET_ID = '00000000-0000-4000-8000-000000000101';
 

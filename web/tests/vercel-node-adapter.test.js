@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
-import { createNodeCompatibleHandler } from '../api/vercel-node-adapter.js';
+import { createNodeCompatibleHandler } from '../server-api/vercel-node-adapter.js';
 
 describe('Vercel Node compatibility adapter', () => {
   it('keeps fetch-style handlers callable through a default Node handler', async () => {

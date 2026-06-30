@@ -1,15 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAdminStringResourcesImportRoute } from '../api/admin/string-resources/import.js';
-import { createStringResourceLocalesRoute } from '../api/string-resource-locales.js';
-import { createStringResourceRowsRoute } from '../api/string-resource-rows.js';
-import { createStringResourceDetailRoute } from '../api/string-resource-rows/[id].js';
+import { createAdminStringResourcesImportRoute } from '../server-api/admin/string-resources/import.js';
+import { createStringResourceLocalesRoute } from '../server-api/string-resource-locales.js';
+import { createStringResourceRowsRoute } from '../server-api/string-resource-rows.js';
+import { createStringResourceDetailRoute } from '../server-api/string-resource-rows/[id].js';
 import {
   handleAdminStringResourcesImportRequest,
   handleStringResourceDetailRequest,
   handleStringResourceLocalesRequest,
   handleStringResourceRowsRequest
-} from '../api/string-resources-core.js';
+} from '../server-api/string-resources-core.js';
 
 const DATASET_ID = '00000000-0000-4000-8000-000000000201';
 const ROW_ID = '00000000-0000-4000-8000-000000000301';

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { translateFilenameText } from './api/translate-filename.js';
+import { translateFilenameText } from './server-api/translate-filename.js';
 import {
   handleAdminBatchDeleteRequest,
   handleAdminImportRequest,
@@ -12,35 +12,35 @@ import {
   handleJsonCountriesRequest,
   handleJsonRecordDetailRequest,
   handleJsonRecordsRequest
-} from './api/json-records-core.js';
-import { getJsonRecordsRepository } from './api/json-records-repository.js';
+} from './server-api/json-records-core.js';
+import { getJsonRecordsRepository } from './server-api/json-records-repository.js';
 import {
   handleAdminMappingImportRequest,
   handleMappingRowsRequest
-} from './api/mapping-table-core.js';
-import { getMappingTableRepository } from './api/mapping-table-repository.js';
+} from './server-api/mapping-table-core.js';
+import { getMappingTableRepository } from './server-api/mapping-table-repository.js';
 import {
   handleAdminStringResourcesImportRequest,
   handleStringResourceDetailRequest,
   handleStringResourceLocalesRequest,
   handleStringResourceRowsRequest
-} from './api/string-resources-core.js';
-import { getStringResourcesRepository } from './api/string-resources-repository.js';
+} from './server-api/string-resources-core.js';
+import { getStringResourcesRepository } from './server-api/string-resources-repository.js';
 import {
   handleActiveDatasetRequest,
   handleAdminDatasetActiveRequest,
   handleAdminDatasetDeleteRequest,
   handleAdminDatasetsRequest,
   handleDatasetsRequest
-} from './api/datasets-core.js';
-import { getDatasetsRepository } from './api/datasets-repository.js';
+} from './server-api/datasets-core.js';
+import { getDatasetsRepository } from './server-api/datasets-repository.js';
 import { normalizeToolRoute } from './public/routes.js';
 
 export {
   buildGoogleTranslateUrl,
   extractGoogleTranslateText,
   translateFilenameText
-} from './api/translate-filename.js';
+} from './server-api/translate-filename.js';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, 'public');

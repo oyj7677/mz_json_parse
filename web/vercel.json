@@ -2,8 +2,20 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "functions": {
-    "api/translate-filename.js": {
-      "maxDuration": 10
+    "api/[resource].js": {
+      "maxDuration": 300
+    },
+    "api/[resource]/[id].js": {
+      "maxDuration": 300
+    },
+    "api/admin/[resource].js": {
+      "maxDuration": 300
+    },
+    "api/admin/[resource]/[id].js": {
+      "maxDuration": 300
+    },
+    "api/admin/[resource]/[id]/[action].js": {
+      "maxDuration": 300
     }
   },
   "rewrites": [

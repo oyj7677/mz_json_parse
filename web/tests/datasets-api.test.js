@@ -1,15 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import adminDatasetsApi, { createAdminDatasetsRoute } from '../api/admin/datasets.js';
-import adminDatasetDeleteApi, { createAdminDatasetDeleteRoute } from '../api/admin/datasets/[id].js';
-import adminDatasetActiveApi, { createAdminDatasetActiveRoute } from '../api/admin/datasets/[id]/active.js';
+import adminDatasetsApi, { createAdminDatasetsRoute } from '../server-api/admin/datasets.js';
+import adminDatasetDeleteApi, { createAdminDatasetDeleteRoute } from '../server-api/admin/datasets/[id].js';
+import adminDatasetActiveApi, { createAdminDatasetActiveRoute } from '../server-api/admin/datasets/[id]/active.js';
 import {
   handleActiveDatasetRequest,
   handleAdminDatasetActiveRequest,
   handleAdminDatasetDeleteRequest,
   handleAdminDatasetsRequest,
   handleDatasetsRequest
-} from '../api/datasets-core.js';
+} from '../server-api/datasets-core.js';
 
 describe('datasets API handlers', () => {
   it('lists public datasets by tool type', async () => {

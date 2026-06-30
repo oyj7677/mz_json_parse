@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {
   createDatasetsRepository,
   resolveDatabaseUrl
-} from '../api/datasets-repository.js';
+} from '../server-api/datasets-repository.js';
 
 describe('datasets repository', () => {
   it('resolves database url from supported env vars', () => {

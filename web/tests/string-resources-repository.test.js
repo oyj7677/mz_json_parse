@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createStringResourcesRepository,
   resolveDatabaseUrl
-} from '../api/string-resources-repository.js';
+} from '../server-api/string-resources-repository.js';
 
 const DATASET_ID = '00000000-0000-4000-8000-000000000201';
 const ROW_ID = '00000000-0000-4000-8000-000000000301';

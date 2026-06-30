@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createJsonRecordsRepository,
   resolveDatabaseUrl
-} from '../api/json-records-repository.js';
+} from '../server-api/json-records-repository.js';
 
 const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
 const SECOND_JSON_DATASET_ID = '00000000-0000-4000-8000-000000000002';

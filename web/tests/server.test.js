@@ -6,7 +6,7 @@ import {
   buildGoogleTranslateUrl,
   extractGoogleTranslateText,
   translateFilenameText
-} from '../api/translate-filename.js';
+} from '../server-api/translate-filename.js';
 import { createAppServer } from '../server.js';
 
 const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';

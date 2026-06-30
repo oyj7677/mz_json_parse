@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createMappingTableRepository,
   resolveDatabaseUrl
-} from '../api/mapping-table-repository.js';
+} from '../server-api/mapping-table-repository.js';
 
 const DATASET_ID = '00000000-0000-4000-8000-000000000101';
 

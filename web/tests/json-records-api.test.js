@@ -1,11 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAdminJsonBatchDeleteRoute } from '../api/admin/json-batches/[id].js';
-import { createAdminJsonImportRoute } from '../api/admin/json-records/import.js';
-import { createAdminJsonRecordDeleteRoute } from '../api/admin/json-records/[id].js';
-import { createAdminJsonStatusRoute } from '../api/admin/json-records/status.js';
-import { createJsonCountriesRoute } from '../api/json-countries.js';
-import { createJsonRecordsRoute } from '../api/json-records.js';
+import { createAdminJsonBatchDeleteRoute } from '../server-api/admin/json-batches/[id].js';
+import { createAdminJsonImportRoute } from '../server-api/admin/json-records/import.js';
+import { createAdminJsonRecordDeleteRoute } from '../server-api/admin/json-records/[id].js';
+import { createAdminJsonStatusRoute } from '../server-api/admin/json-records/status.js';
+import { createJsonCountriesRoute } from '../server-api/json-countries.js';
+import { createJsonRecordsRoute } from '../server-api/json-records.js';
 import {
   handleAdminBatchDeleteRequest,
   handleAdminImportRequest,
@@ -14,7 +14,7 @@ import {
   handleJsonCountriesRequest,
   handleJsonRecordDetailRequest,
   handleJsonRecordsRequest
-} from '../api/json-records-core.js';
+} from '../server-api/json-records-core.js';
 
 const JSON_DATASET_ID = '00000000-0000-4000-8000-000000000001';
 
