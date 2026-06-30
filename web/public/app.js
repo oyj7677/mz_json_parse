@@ -1066,7 +1066,8 @@ function renderAdminDatasetOptions() {
   for (const dataset of state.admin.datasets) {
     const option = document.createElement('option');
     option.value = dataset.id;
-    option.textContent = dataset.isActive ? `${dataset.name} (active)` : dataset.name;
+    option.disabled = !dataset.isActive;
+    option.textContent = dataset.isActive ? `${dataset.name} (active)` : `${dataset.name} (inactive)`;
     fragment.append(option);
   }
   elements.adminDatasetSelect.replaceChildren(fragment);
