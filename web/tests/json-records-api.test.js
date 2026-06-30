@@ -4,6 +4,8 @@ import { createAdminJsonBatchDeleteRoute } from '../api/admin/json-batches/[id].
 import { createAdminJsonImportRoute } from '../api/admin/json-records/import.js';
 import { createAdminJsonRecordDeleteRoute } from '../api/admin/json-records/[id].js';
 import { createAdminJsonStatusRoute } from '../api/admin/json-records/status.js';
+import { createJsonCountriesRoute } from '../api/json-countries.js';
+import { createJsonRecordsRoute } from '../api/json-records.js';
 import {
   handleAdminBatchDeleteRequest,
   handleAdminImportRequest,
@@ -354,6 +356,52 @@ describe('JSON records API handlers', () => {
     assert.match(missingDatasetBody.error, /datasetId/);
     assert.equal(invalidDatasetResponse.status, 400);
     assert.match(invalidDatasetBody.error, /valid UUID/);
+    assert.equal(repositoryLoads, 0);
+  });
+
+  it('keeps public JSON records Vercel wrapper validation-first before loading repositories', async () => {
+    let repositoryLoads = 0;
+    const route = createJsonRecordsRoute({
+      getRepository: async () => {
+        repositoryLoads += 1;
+        return {
+          async searchRecords() {
+            throw new Error('should not search with an invalid datasetId');
+          }
+        };
+      }
+    });
+
+    const response = await route.handler.fetch(
+      new Request('https://example.com/api/json-records?datasetId=not-a-uuid&q=weather')
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /valid UUID/);
+    assert.equal(repositoryLoads, 0);
+  });
+
+  it('keeps public JSON countries Vercel wrapper validation-first before loading repositories', async () => {
+    let repositoryLoads = 0;
+    const route = createJsonCountriesRoute({
+      getRepository: async () => {
+        repositoryLoads += 1;
+        return {
+          async listCountries() {
+            throw new Error('should not list countries with an invalid datasetId');
+          }
+        };
+      }
+    });
+
+    const response = await route.handler.fetch(
+      new Request('https://example.com/api/json-countries?datasetId=not-a-uuid')
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /valid UUID/);
     assert.equal(repositoryLoads, 0);
   });
 

@@ -5,22 +5,33 @@ import {
 import { getJsonRecordsRepository } from './json-records-repository.js';
 import { createNodeCompatibleHandler } from './vercel-node-adapter.js';
 
-export async function GET(request) {
-  const repository = await getJsonRecordsRepository();
-  return handleJsonRecordsRequest(request, { repository });
-}
+export function createJsonRecordsRoute({ getRepository = getJsonRecordsRepository } = {}) {
+  const repository = () => getRepository();
 
-export function POST() {
-  return methodNotAllowedResponse();
-}
-
-export default createNodeCompatibleHandler(async (request) => {
-  if (request.method === 'GET') {
-    return GET(request);
+  function GET(request) {
+    return handleJsonRecordsRequest(request, { repository });
   }
 
-  return methodNotAllowedResponse();
-});
+  function POST() {
+    return methodNotAllowedResponse();
+  }
+
+  const handler = createNodeCompatibleHandler(async (request) => {
+    if (request.method === 'GET') {
+      return GET(request);
+    }
+
+    return methodNotAllowedResponse();
+  });
+
+  return { GET, POST, handler };
+}
+
+const jsonRecordsRoute = createJsonRecordsRoute();
+
+export const GET = jsonRecordsRoute.GET;
+export const POST = jsonRecordsRoute.POST;
+export default jsonRecordsRoute.handler;
 
 function methodNotAllowedResponse() {
   return jsonResponse({ error: 'Method not allowed.' }, 405);
