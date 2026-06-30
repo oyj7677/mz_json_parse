@@ -205,6 +205,7 @@ const elements = {
   adminLanguageInput: document.querySelector('#adminLanguageInput'),
   adminLanguageOptions: document.querySelector('#adminLanguageOptions'),
   adminMappingFileInput: document.querySelector('#adminMappingFileInput'),
+  adminMappingImportStatus: document.querySelector('#adminMappingImportStatus'),
   adminMappingTab: document.querySelector('#adminMappingTab'),
   adminMappingUploadButton: document.querySelector('#adminMappingUploadButton'),
   adminMappingUploadPanel: document.querySelector('#adminMappingUploadPanel'),
@@ -216,6 +217,7 @@ const elements = {
   adminSelectedFileCount: document.querySelector('#adminSelectedFileCount'),
   adminStatus: document.querySelector('#adminStatus'),
   adminStringResourceFileInput: document.querySelector('#adminStringResourceFileInput'),
+  adminStringResourceImportStatus: document.querySelector('#adminStringResourceImportStatus'),
   adminStringResourceTab: document.querySelector('#adminStringResourceTab'),
   adminStringResourceUploadButton: document.querySelector('#adminStringResourceUploadButton'),
   adminStringResourceUploadPanel: document.querySelector('#adminStringResourceUploadPanel'),
@@ -1661,7 +1663,17 @@ function setAdminStatus(message) {
 }
 
 function setAdminImportStatus(message) {
-  elements.adminImportStatus.textContent = message;
+  adminImportStatusElement().textContent = message;
+}
+
+function adminImportStatusElement() {
+  if (state.adminDb.activeTool === 'mapping') {
+    return elements.adminMappingImportStatus;
+  }
+  if (state.adminDb.activeTool === 'stringResource') {
+    return elements.adminStringResourceImportStatus;
+  }
+  return elements.adminImportStatus;
 }
 
 function formatAdminDate(value) {

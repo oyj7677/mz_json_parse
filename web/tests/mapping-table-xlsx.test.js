@@ -7,7 +7,7 @@ import {
 } from '../public/mapping-table-xlsx.js';
 
 describe('mapping-table-xlsx', () => {
-  it('converts SheetJS array rows to workbook sheet row objects', () => {
+  it('converts SheetJS array rows to workbook sheet row objects without importing headers as data', () => {
     const workbook = convertMappingSheetJsonToWorkbook(
       {
         SheetNames: ['GROUP INTENTIONS', 'SLOT REFERENCE'],
@@ -31,14 +31,12 @@ describe('mapping-table-xlsx', () => {
         {
           name: 'GROUP INTENTIONS',
           rows: [
-            { rowNumber: 1, values: { Domain: 'Domain', Intention: 'Intention' } },
             { rowNumber: 2, values: { Domain: 'vehicle', Intention: 'turn_on_ac' } }
           ]
         },
         {
           name: 'SLOT REFERENCE',
           rows: [
-            { rowNumber: 1, values: { slot: 'slot', value: 'value' } },
             { rowNumber: 2, values: { slot: 'temperature', value: 'low' } }
           ]
         }
@@ -62,7 +60,6 @@ describe('mapping-table-xlsx', () => {
     );
 
     assert.deepEqual(workbook.sheets[0].rows, [
-      { rowNumber: 1, values: { Domain: 'Domain', 'Column 2': '', Note: 'Note' } },
       { rowNumber: 2, values: { Domain: 'vehicle', 'Column 2': '', Note: 'ok' } },
       { rowNumber: 3, values: { Domain: 'media', 'Column 2': '', Note: '' } }
     ]);
@@ -105,7 +102,8 @@ describe('mapping-table-xlsx', () => {
     assert.equal(readCalls.length, 1);
     assert.deepEqual(readCalls[0].options, { type: 'array' });
     assert.equal(workbook.source, 'mapping.xlsx');
-    assert.equal(workbook.sheets[0].rows[1].values.Intention, 'turn_on_ac');
+    assert.equal(workbook.sheets[0].rows[0].rowNumber, 2);
+    assert.equal(workbook.sheets[0].rows[0].values.Intention, 'turn_on_ac');
   });
 
   it('reports when SheetJS is unavailable', () => {

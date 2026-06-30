@@ -392,8 +392,10 @@ describe('upload-first UI structure', () => {
       'adminMappingUploadPanel',
       'adminStringResourceUploadPanel',
       'adminMappingFileInput',
+      'adminMappingImportStatus',
       'adminMappingUploadButton',
       'adminStringResourceFileInput',
+      'adminStringResourceImportStatus',
       'adminStringResourceUploadButton'
     ]) {
       assert.match(html, new RegExp(`id="${id}"`));
@@ -418,7 +420,8 @@ describe('upload-first UI structure', () => {
       'uploadAdminMappingDataset',
       'uploadAdminStringResourceDataset',
       'renderAdminDatasetList',
-      'setAdminTool'
+      'setAdminTool',
+      'adminImportStatusElement'
     ]) {
       assert.match(app, new RegExp(`\\b${contract}\\b`));
     }
@@ -438,6 +441,9 @@ describe('upload-first UI structure', () => {
     assert.match(app, /fetch\('\/api\/admin\/string-resources\/import'/);
     assert.match(app, /normalizeMappingWorkbook\(workbook\)/);
     assert.match(app, /normalizeStringResourceWorkbook\(workbook,\s*file\.name\)/);
+    assert.match(app, /adminImportStatusElement\(\)\.textContent = message/);
+    assert.match(app, /adminMappingImportStatus:\s*document\.querySelector\('#adminMappingImportStatus'\)/);
+    assert.match(app, /adminStringResourceImportStatus:\s*document\.querySelector\('#adminStringResourceImportStatus'\)/);
   });
 
   it('declares local SheetJS vendor loading for Excel parsing', async () => {

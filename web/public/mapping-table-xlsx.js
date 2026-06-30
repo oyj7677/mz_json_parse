@@ -49,8 +49,8 @@ export function rowsToObjects(rows) {
     return text || `Column ${index + 1}`;
   });
 
-  return rows.map((row, rowIndex) => ({
-    rowNumber: rowIndex + 1,
+  return rows.slice(1).map((row, rowIndex) => ({
+    rowNumber: rowIndex + 2,
     values: Object.fromEntries(
       header.map((columnName, columnIndex) => [
         columnName,

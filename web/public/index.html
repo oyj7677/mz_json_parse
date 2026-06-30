@@ -723,7 +723,7 @@
           <div class="upload-strip">
             <label class="file-picker" for="adminMappingFileInput">Mapping XLSX select</label>
             <input id="adminMappingFileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-            <span>Workbook rows are normalized before DB import.</span>
+            <span id="adminMappingImportStatus" aria-live="polite">Workbook rows are normalized before DB import.</span>
           </div>
           <button class="primary-action" id="adminMappingUploadButton" type="button" disabled>
             Upload Mapping
@@ -740,7 +740,7 @@
           <div class="upload-strip">
             <label class="file-picker" for="adminStringResourceFileInput">String XLSX select</label>
             <input id="adminStringResourceFileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple>
-            <span>Detected resource locales are included in the import summary.</span>
+            <span id="adminStringResourceImportStatus" aria-live="polite">Detected resource locales are included in the import summary.</span>
           </div>
           <button class="primary-action" id="adminStringResourceUploadButton" type="button" disabled>
             Upload Strings
