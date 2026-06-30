@@ -80,7 +80,7 @@ export async function handleJsonRecordsRequest(request, { repository } = {}) {
   if (request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -101,7 +101,7 @@ export async function handleJsonRecordDetailRequest(request, { id, repository } 
   if (request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -124,7 +124,7 @@ export async function handleAdminStatusRequest(request, { env = process.env, rep
   if (request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -142,7 +142,7 @@ export async function handleAdminImportRequest(request, { env = process.env, rep
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -165,7 +165,7 @@ export async function handleAdminRecordDeleteRequest(request, { env = process.en
   if (request.method !== 'DELETE') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -181,7 +181,7 @@ export async function handleAdminBatchDeleteRequest(request, { env = process.env
   if (request.method !== 'DELETE') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -252,11 +252,15 @@ async function readRequestJson(request) {
   return JSON.parse(text);
 }
 
-function ensureRepository(repository) {
-  if (!repository) {
+async function ensureRepository(repository) {
+  const repo = typeof repository === 'function'
+    ? await repository()
+    : await repository;
+
+  if (!repo) {
     return jsonResponse({ error: 'DATABASE_URL is not configured.' }, 503);
   }
-  return repository;
+  return repo;
 }
 
 function clampInteger(value, min, max, fallback) {

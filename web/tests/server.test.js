@@ -174,6 +174,68 @@ describe('translation server helpers', () => {
     }
   });
 
+  it('keeps local JSON admin routes auth-first before loading repository dependencies', async () => {
+    let repositoryLoads = 0;
+    const server = createAppServer({
+      env: { JSON_ADMIN_KEY: 'secret' },
+      jsonRecordsRepository: async () => {
+        repositoryLoads += 1;
+        return {
+          async deleteBatch() {
+            return { deletedCount: 1 };
+          },
+          async deleteRecord() {
+            return { deletedCount: 1 };
+          },
+          async getStatus() {
+            return { batchCount: 0, recordCount: 0 };
+          },
+          async importRecords() {
+            return { insertedCount: 0, skippedCount: 0 };
+          }
+        };
+      }
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    try {
+      const { port } = server.address();
+      const baseUrl = `http://127.0.0.1:${port}`;
+      const responses = await Promise.all([
+        fetch(`${baseUrl}/api/admin/json-records/status`),
+        fetch(`${baseUrl}/api/admin/json-records/import`, {
+          body: JSON.stringify({ files: [] }),
+          method: 'POST'
+        }),
+        fetch(`${baseUrl}/api/admin/json-records/record-1`, { method: 'DELETE' }),
+        fetch(`${baseUrl}/api/admin/json-batches/batch-1`, { method: 'DELETE' })
+      ]);
+
+      assert.deepEqual(responses.map((response) => response.status), [401, 401, 401, 401]);
+      assert.equal(repositoryLoads, 0);
+
+      const authorizedResponse = await fetch(`${baseUrl}/api/admin/json-records/status`, {
+        headers: { 'x-admin-key': 'secret' }
+      });
+      const authorizedBody = await authorizedResponse.json();
+
+      assert.equal(authorizedResponse.status, 200);
+      assert.equal(authorizedBody.status.recordCount, 0);
+      assert.equal(repositoryLoads, 1);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    }
+  });
+
   it('serves local dataset API routes with injected repository dependencies', async () => {
     const calls = [];
     const repository = {

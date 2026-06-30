@@ -118,15 +118,15 @@ async function handleJsonRecordsApi(request, response, { env, jsonRecordsReposit
       repository
     });
   } else if (pathname === '/api/admin/json-records/status') {
-    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminStatusRequest(apiRequest, { env, repository });
   } else if (pathname === '/api/admin/json-records/import') {
-    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminImportRequest(apiRequest, { env, repository });
   } else if (pathname.startsWith('/api/admin/json-records/')) {
-    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminRecordDeleteRequest(apiRequest, {
       env,
@@ -134,7 +134,7 @@ async function handleJsonRecordsApi(request, response, { env, jsonRecordsReposit
       repository
     });
   } else if (pathname.startsWith('/api/admin/json-batches/')) {
-    const repository = jsonRecordsRepository ?? await getJsonRecordsRepository(env);
+    const repository = jsonRecordsRepository ?? (() => getJsonRecordsRepository(env));
     const apiRequest = await toFetchRequest(request);
     apiResponse = await handleAdminBatchDeleteRequest(apiRequest, {
       env,
