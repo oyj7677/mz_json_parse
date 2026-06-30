@@ -2,29 +2,40 @@ import { handleAdminDatasetDeleteRequest } from '../../datasets-core.js';
 import { getDatasetsRepository } from '../../datasets-repository.js';
 import { createNodeCompatibleHandler } from '../../vercel-node-adapter.js';
 
-export async function DELETE(request) {
-  const repository = await getDatasetsRepository();
-  return handleAdminDatasetDeleteRequest(request, {
-    id: routeId(request),
-    repository
-  });
-}
+export function createAdminDatasetDeleteRoute({ getRepository = getDatasetsRepository } = {}) {
+  const repository = () => getRepository();
 
-export function GET(request) {
-  return handleAdminDatasetDeleteRequest(request, {
-    id: routeId(request)
-  });
-}
-
-export default createNodeCompatibleHandler(async (request) => {
-  if (request.method === 'DELETE') {
-    return DELETE(request);
+  function DELETE(request) {
+    return handleAdminDatasetDeleteRequest(request, {
+      id: routeId(request),
+      repository
+    });
   }
 
-  return handleAdminDatasetDeleteRequest(request, {
-    id: routeId(request)
+  function GET(request) {
+    return handleAdminDatasetDeleteRequest(request, {
+      id: routeId(request)
+    });
+  }
+
+  const handler = createNodeCompatibleHandler(async (request) => {
+    if (request.method === 'DELETE') {
+      return DELETE(request);
+    }
+
+    return handleAdminDatasetDeleteRequest(request, {
+      id: routeId(request)
+    });
   });
-});
+
+  return { DELETE, GET, handler };
+}
+
+const adminDatasetDeleteRoute = createAdminDatasetDeleteRoute();
+
+export const DELETE = adminDatasetDeleteRoute.DELETE;
+export const GET = adminDatasetDeleteRoute.GET;
+export default adminDatasetDeleteRoute.handler;
 
 function routeId(request) {
   const pathname = new URL(request.url).pathname;

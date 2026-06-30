@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import adminDatasetsApi from '../api/admin/datasets.js';
-import adminDatasetDeleteApi from '../api/admin/datasets/[id].js';
-import adminDatasetActiveApi from '../api/admin/datasets/[id]/active.js';
+import adminDatasetsApi, { createAdminDatasetsRoute } from '../api/admin/datasets.js';
+import adminDatasetDeleteApi, { createAdminDatasetDeleteRoute } from '../api/admin/datasets/[id].js';
+import adminDatasetActiveApi, { createAdminDatasetActiveRoute } from '../api/admin/datasets/[id]/active.js';
 import {
   handleActiveDatasetRequest,
   handleAdminDatasetActiveRequest,
@@ -448,6 +448,109 @@ describe('datasets API handlers', () => {
       assert.equal((await unauthorizedResponse.json()).error, 'Unauthorized.');
       assert.equal(authorizedResponse.status, 405);
       assert.equal((await authorizedResponse.json()).error, 'Method not allowed.');
+    });
+  });
+
+  it('keeps admin datasets wrapper auth-first for unauthenticated GET requests', async () => {
+    await withAdminKey('secret', async () => {
+      let repositoryCalls = 0;
+      const route = createAdminDatasetsRoute({
+        async getRepository() {
+          repositoryCalls += 1;
+          return {
+            async listDatasets() {
+              return [];
+            }
+          };
+        }
+      });
+
+      const response = await route.handler.fetch(
+        new Request('https://example.com/api/admin/datasets?tool=json')
+      );
+
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).error, 'Unauthorized.');
+      assert.equal(repositoryCalls, 0);
+    });
+  });
+
+  it('keeps admin datasets wrapper auth-first for unauthenticated POST requests', async () => {
+    await withAdminKey('secret', async () => {
+      let repositoryCalls = 0;
+      const route = createAdminDatasetsRoute({
+        async getRepository() {
+          repositoryCalls += 1;
+          return {
+            async createDataset() {
+              return {};
+            }
+          };
+        }
+      });
+
+      const response = await route.handler.fetch(
+        new Request('https://example.com/api/admin/datasets', {
+          body: JSON.stringify({ name: 'Unauthorized dataset', toolType: 'json' }),
+          method: 'POST'
+        })
+      );
+
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).error, 'Unauthorized.');
+      assert.equal(repositoryCalls, 0);
+    });
+  });
+
+  it('keeps admin dataset id wrapper auth-first for unauthenticated DELETE requests', async () => {
+    await withAdminKey('secret', async () => {
+      let repositoryCalls = 0;
+      const route = createAdminDatasetDeleteRoute({
+        async getRepository() {
+          repositoryCalls += 1;
+          return {
+            async deleteDataset() {
+              return { deletedCount: 1 };
+            }
+          };
+        }
+      });
+
+      const response = await route.handler.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1', {
+          method: 'DELETE'
+        })
+      );
+
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).error, 'Unauthorized.');
+      assert.equal(repositoryCalls, 0);
+    });
+  });
+
+  it('keeps admin active wrapper auth-first for unauthenticated PATCH requests', async () => {
+    await withAdminKey('secret', async () => {
+      let repositoryCalls = 0;
+      const route = createAdminDatasetActiveRoute({
+        async getRepository() {
+          repositoryCalls += 1;
+          return {
+            async setActiveDataset() {
+              return {};
+            }
+          };
+        }
+      });
+
+      const response = await route.handler.fetch(
+        new Request('https://example.com/api/admin/datasets/dataset-1/active', {
+          method: 'PATCH'
+        })
+      );
+
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).error, 'Unauthorized.');
+      assert.equal(repositoryCalls, 0);
     });
   });
 });

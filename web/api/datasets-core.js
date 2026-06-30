@@ -15,7 +15,7 @@ export async function handleDatasetsRequest(request, { repository } = {}) {
     return invalidToolTypeResponse();
   }
 
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -35,7 +35,7 @@ export async function handleActiveDatasetRequest(request, { repository } = {}) {
     return invalidToolTypeResponse();
   }
 
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -55,7 +55,7 @@ export async function handleAdminDatasetsRequest(request, { env = process.env, r
     return methodNotAllowedResponse();
   }
 
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -108,7 +108,7 @@ export async function handleAdminDatasetActiveRequest(request, { env = process.e
     return methodNotAllowedResponse();
   }
 
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -131,7 +131,7 @@ export async function handleAdminDatasetDeleteRequest(request, { env = process.e
     return methodNotAllowedResponse();
   }
 
-  const repo = ensureRepository(repository);
+  const repo = await ensureRepository(repository);
   if (repo instanceof Response) {
     return repo;
   }
@@ -181,11 +181,15 @@ function requireAdminKey(request, env) {
   return undefined;
 }
 
-function ensureRepository(repository) {
-  if (!repository) {
+async function ensureRepository(repository) {
+  const repo = typeof repository === 'function'
+    ? await repository()
+    : await repository;
+
+  if (!repo) {
     return jsonResponse({ error: 'DATABASE_URL is not configured.' }, 503);
   }
-  return repository;
+  return repo;
 }
 
 async function readRequestJson(request) {
