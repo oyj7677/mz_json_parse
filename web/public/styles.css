@@ -850,6 +850,51 @@ textarea:focus,
   flex-wrap: wrap;
 }
 
+.explorer-filter-group,
+.string-resource-filter-group {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.explorer-filter-group {
+  max-width: 100%;
+}
+
+.string-resource-filter-group {
+  max-width: 100%;
+}
+
+.explorer-filter-field {
+  display: grid;
+  min-width: 150px;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.explorer-filter-field select {
+  min-height: 34px;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: white;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.explorer-filter-field select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(18, 104, 214, 0.14);
+}
+
 .explorer-toolbar .upload-strip {
   flex: 1 1 420px;
 }
@@ -1116,6 +1161,20 @@ body.resizing-explorer-column {
   display: flex;
   min-height: 0;
   flex: 1;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mapping-dataset-toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
 }
 
 .mapping-workflow {
@@ -2081,6 +2140,13 @@ body.resizing-explorer-column {
   .explorer-toolbar-meta {
     width: 100%;
     align-items: stretch;
+  }
+
+  .explorer-filter-group,
+  .string-resource-filter-group,
+  .mapping-dataset-toolbar,
+  .explorer-filter-field {
+    width: 100%;
   }
 
   .explorer-toolbar-meta {

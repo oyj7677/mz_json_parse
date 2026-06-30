@@ -764,6 +764,60 @@ describe('upload-first UI structure', () => {
     assert.doesNotMatch(app, /\bselectExplorerItem\b/);
   });
 
+  it('wires DB-backed explorer dataset filters and loading contracts', async () => {
+    const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+    for (const id of [
+      'explorerDatasetSelect',
+      'explorerCountrySelect',
+      'mappingDatasetSelect',
+      'stringResourceDatasetSelect'
+    ]) {
+      assert.match(html, new RegExp(`id="${id}"`));
+      assert.match(app, new RegExp(`${id}:\\s*document\\.querySelector\\('#${id}'\\)`));
+    }
+
+    for (const selector of [
+      '.explorer-filter-group',
+      '.explorer-filter-field',
+      '.mapping-dataset-toolbar',
+      '.string-resource-filter-group'
+    ]) {
+      assert.match(css, new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{`));
+    }
+
+    for (const contract of [
+      'fetchDatasets',
+      'renderDatasetOptions',
+      'loadExplorerDatasets',
+      'loadExplorerCountries',
+      'searchDbExplorerRecords',
+      'loadMappingDatasetRows',
+      'loadStringResourceDatasetRows'
+    ]) {
+      assert.match(app, new RegExp(`\\b${contract}\\b`));
+    }
+
+    for (const apiPattern of [
+      /\/api\/datasets\?tool=json/,
+      /\/api\/datasets\?tool=mapping_table/,
+      /\/api\/datasets\?tool=string_resource/,
+      /\/api\/json-countries/,
+      /\/api\/json-records/,
+      /\/api\/mapping-rows/,
+      /\/api\/string-resource-rows/
+    ]) {
+      assert.match(app, apiPattern);
+    }
+
+    assert.match(app, /elements\.explorerDatasetSelect\.addEventListener\('change'/);
+    assert.match(app, /elements\.explorerCountrySelect\.addEventListener\('change'/);
+    assert.match(app, /elements\.mappingDatasetSelect\.addEventListener\('change'/);
+    assert.match(app, /elements\.stringResourceDatasetSelect\.addEventListener\('change'/);
+  });
+
   it('hides explorer suggestions when the user leaves search assistance mode', async () => {
     const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 

@@ -43,6 +43,11 @@ const ADMIN_DATASET_TOOL_TYPES = {
   mapping: 'mapping_table',
   stringResource: 'string_resource'
 };
+const DATASET_API_URLS = {
+  json: '/api/datasets?tool=json',
+  mapping_table: '/api/datasets?tool=mapping_table',
+  string_resource: '/api/datasets?tool=string_resource'
+};
 const DEFAULT_ADMIN_LANGUAGE_OPTIONS = [
   'ko_KR',
   'en_US',
@@ -67,15 +72,22 @@ const state = {
   activeItemId: null,
   errors: [],
   explorer: {
+    countries: [],
+    datasets: [],
     errors: [],
     isFileDrawerOpen: false,
+    isDbLoaded: false,
+    isDbLoading: false,
     items: [],
     modalItemId: null,
     nextId: 1,
-    query: ''
+    query: '',
+    selectedCountry: '',
+    selectedDatasetId: ''
   },
   items: [],
   mapping: {
+    datasets: [],
     error: '',
     isLoaded: false,
     isLoading: false,
@@ -86,6 +98,7 @@ const state = {
     source: ''
   },
   stringResource: {
+    datasets: [],
     errors: [],
     expandedFileIds: new Set(),
     files: [],
@@ -95,6 +108,7 @@ const state = {
     nextFileId: 1,
     query: '',
     rows: [],
+    selectedDatasetId: '',
     selectedSheetIds: new Set(),
     visibleQualifiers: [...STRING_RESOURCE_DEFAULT_QUALIFIERS]
   },
@@ -239,6 +253,8 @@ const elements = {
   downloadAllButton: document.querySelector('#downloadAllButton'),
   explorerApp: document.querySelector('#explorerApp'),
   explorerCount: document.querySelector('#explorerCount'),
+  explorerCountrySelect: document.querySelector('#explorerCountrySelect'),
+  explorerDatasetSelect: document.querySelector('#explorerDatasetSelect'),
   explorerDrawerCount: document.querySelector('#explorerDrawerCount'),
   explorerEmptyState: document.querySelector('#explorerEmptyState'),
   explorerFileCount: document.querySelector('#explorerFileCount'),
@@ -292,6 +308,7 @@ const elements = {
   jsonEditorSwapButton: document.querySelector('#jsonEditorSwapButton'),
   mappingApp: document.querySelector('#mappingApp'),
   mappingCount: document.querySelector('#mappingCount'),
+  mappingDatasetSelect: document.querySelector('#mappingDatasetSelect'),
   mappingGroupEmptyState: document.querySelector('#mappingGroupEmptyState'),
   mappingGroupResultCount: document.querySelector('#mappingGroupResultCount'),
   mappingGroupSearchInput: document.querySelector('#mappingGroupSearchInput'),
@@ -304,6 +321,7 @@ const elements = {
   mappingStatus: document.querySelector('#mappingStatus'),
   stringResourceApp: document.querySelector('#stringResourceApp'),
   stringResourceCount: document.querySelector('#stringResourceCount'),
+  stringResourceDatasetSelect: document.querySelector('#stringResourceDatasetSelect'),
   stringResourceDetailBackdrop: document.querySelector('#stringResourceDetailBackdrop'),
   stringResourceDetailBody: document.querySelector('#stringResourceDetailBody'),
   stringResourceDetailMeta: document.querySelector('#stringResourceDetailMeta'),
@@ -481,10 +499,26 @@ elements.adminRecordSearchInput.addEventListener('input', (event) => {
 
 elements.stringResourceSearchInput.addEventListener('input', (event) => {
   state.stringResource.query = event.target.value;
-  renderStringResource();
+  if (state.stringResource.selectedDatasetId) {
+    void loadStringResourceDatasetRows(state.stringResource.selectedDatasetId, state.stringResource.query);
+  } else {
+    renderStringResource();
+  }
+});
+
+elements.stringResourceDatasetSelect.addEventListener('change', (event) => {
+  state.stringResource.selectedDatasetId = event.target.value;
+  if (!state.stringResource.selectedDatasetId) {
+    clearDbStringResourceRows();
+    renderStringResource();
+    return;
+  }
+  void loadStringResourceDatasetRows(state.stringResource.selectedDatasetId, state.stringResource.query);
 });
 
 elements.stringResourceFileInput.addEventListener('change', async () => {
+  state.stringResource.selectedDatasetId = '';
+  elements.stringResourceDatasetSelect.value = '';
   await registerStringResourceFiles(elements.stringResourceFileInput.files);
   elements.stringResourceFileInput.value = '';
 });
@@ -522,19 +556,70 @@ elements.mappingGroupSearchInput.addEventListener('input', (event) => {
   renderMappingWorkflow();
 });
 
+elements.mappingDatasetSelect.addEventListener('change', (event) => {
+  state.mapping.source = '';
+  state.mapping.selectedGroupId = '';
+  state.mapping.selectedSlots = [];
+  if (!event.target.value) {
+    state.mapping.isLoaded = false;
+    state.mapping.isLoading = true;
+    state.mapping.rows = [];
+    renderMappingWorkflow();
+    void loadStaticMappingData()
+      .catch((error) => {
+        state.mapping.error = error instanceof Error ? error.message : String(error);
+      })
+      .finally(() => {
+        state.mapping.isLoading = false;
+        renderMappingWorkflow();
+      });
+    return;
+  }
+  void loadMappingDatasetRows(event.target.value);
+});
+
 elements.explorerFileInput.addEventListener('change', async () => {
+  state.explorer.selectedDatasetId = '';
+  state.explorer.selectedCountry = '';
+  elements.explorerDatasetSelect.value = '';
+  renderExplorerCountries([]);
   await registerExplorerFiles(elements.explorerFileInput.files);
   elements.explorerFileInput.value = '';
 });
 
 elements.explorerFolderInput.addEventListener('change', async () => {
+  state.explorer.selectedDatasetId = '';
+  state.explorer.selectedCountry = '';
+  elements.explorerDatasetSelect.value = '';
+  renderExplorerCountries([]);
   await registerExplorerFiles(elements.explorerFolderInput.files);
   elements.explorerFolderInput.value = '';
 });
 
 elements.explorerSearchInput.addEventListener('input', (event) => {
   state.explorer.query = event.target.value;
-  renderExplorer();
+  if (state.explorer.selectedDatasetId) {
+    void searchDbExplorerRecords();
+  } else {
+    renderExplorer();
+  }
+});
+
+elements.explorerDatasetSelect.addEventListener('change', (event) => {
+  state.explorer.selectedDatasetId = event.target.value;
+  state.explorer.selectedCountry = '';
+  if (!state.explorer.selectedDatasetId) {
+    clearDbExplorerRows();
+    renderExplorerCountries([]);
+    renderExplorer();
+    return;
+  }
+  void loadExplorerCountries().then(() => searchDbExplorerRecords());
+});
+
+elements.explorerCountrySelect.addEventListener('change', (event) => {
+  state.explorer.selectedCountry = event.target.value;
+  void searchDbExplorerRecords();
 });
 
 elements.explorerSearchInput.addEventListener('keydown', (event) => {
@@ -816,6 +901,7 @@ function showExplorerTool() {
   elements.adminApp.hidden = true;
   document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.backToHubFromExplorerButton.focus();
+  void loadExplorerDatasets();
 }
 
 function showMappingTool() {
@@ -850,6 +936,7 @@ function showStringResourceTool() {
   elements.adminApp.hidden = true;
   document.body.classList.remove('formatter-active', 'mapping-active', 'json-editor-active');
   elements.stringResourceSearchInput.focus();
+  void loadStringResourceDatasets();
   renderStringResource();
 }
 
@@ -2208,6 +2295,296 @@ function stringResourceSheetId(fileId, sheetName) {
   return `${fileId}::${sheetName}`;
 }
 
+async function fetchDatasets(tool) {
+  const response = await fetch(DATASET_API_URLS[tool] ?? `/api/datasets?tool=${encodeURIComponent(tool)}`);
+  if (!response.ok) {
+    throw new Error(`Dataset request failed: ${response.status}`);
+  }
+  const body = await response.json();
+  return Array.isArray(body.datasets) ? body.datasets : [];
+}
+
+function renderDatasetOptions(selectElement, datasets, fallbackLabel) {
+  const currentValue = selectElement.value;
+  const fragment = document.createDocumentFragment();
+  const fallback = document.createElement('option');
+  fallback.value = '';
+  fallback.textContent = fallbackLabel;
+  fragment.append(fallback);
+
+  for (const dataset of datasets) {
+    const option = document.createElement('option');
+    option.value = String(dataset.id ?? '');
+    option.textContent = dataset.recordCount == null
+      ? String(dataset.name ?? dataset.id ?? 'Dataset')
+      : `${dataset.name ?? dataset.id ?? 'Dataset'} (${Number(dataset.recordCount).toLocaleString()})`;
+    option.disabled = dataset.isActive === false;
+    fragment.append(option);
+  }
+
+  selectElement.replaceChildren(fragment);
+  const values = new Set(['', ...datasets.map((dataset) => String(dataset.id ?? ''))]);
+  selectElement.value = values.has(currentValue) ? currentValue : '';
+}
+
+async function loadExplorerDatasets() {
+  try {
+    state.explorer.datasets = await fetchDatasets('json');
+    renderDatasetOptions(elements.explorerDatasetSelect, state.explorer.datasets, 'Local files');
+    if (!state.explorer.selectedDatasetId) {
+      const activeDataset = state.explorer.datasets.find((dataset) => dataset.isActive !== false) ?? state.explorer.datasets[0];
+      state.explorer.selectedDatasetId = activeDataset?.id ? String(activeDataset.id) : '';
+      elements.explorerDatasetSelect.value = state.explorer.selectedDatasetId;
+    }
+    await loadExplorerCountries();
+    await searchDbExplorerRecords();
+  } catch (error) {
+    state.explorer.selectedDatasetId = '';
+    renderDatasetOptions(elements.explorerDatasetSelect, [], 'Local files');
+    renderExplorerCountries([]);
+    setExplorerUploadStatus(error instanceof Error ? `DB unavailable: ${error.message}` : 'DB unavailable');
+    renderExplorer();
+  }
+}
+
+async function loadExplorerCountries() {
+  if (!state.explorer.selectedDatasetId) {
+    renderExplorerCountries([]);
+    return;
+  }
+
+  const params = new URLSearchParams({ datasetId: state.explorer.selectedDatasetId });
+  const response = await fetch(`/api/json-countries?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`JSON country request failed: ${response.status}`);
+  }
+  const body = await response.json();
+  renderExplorerCountries(Array.isArray(body.countries) ? body.countries : []);
+}
+
+function renderExplorerCountries(countries) {
+  state.explorer.countries = countries;
+  const currentValue = state.explorer.selectedCountry;
+  const fragment = document.createDocumentFragment();
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = 'All countries';
+  fragment.append(allOption);
+
+  for (const country of countries) {
+    const option = document.createElement('option');
+    option.value = String(country.countryRegion ?? '');
+    option.textContent = country.count == null
+      ? String(country.countryRegion ?? 'Unknown')
+      : `${country.countryRegion ?? 'Unknown'} (${Number(country.count).toLocaleString()})`;
+    fragment.append(option);
+  }
+
+  elements.explorerCountrySelect.replaceChildren(fragment);
+  const values = new Set(['', ...countries.map((country) => String(country.countryRegion ?? ''))]);
+  state.explorer.selectedCountry = values.has(currentValue) ? currentValue : '';
+  elements.explorerCountrySelect.value = state.explorer.selectedCountry;
+  elements.explorerCountrySelect.disabled = !state.explorer.selectedDatasetId || countries.length === 0;
+}
+
+function clearDbExplorerRows() {
+  state.explorer.items = state.explorer.items.filter((item) => item.sourceType !== 'db');
+  state.explorer.errors = [];
+  state.explorer.isDbLoaded = false;
+  state.explorer.isDbLoading = false;
+  setExplorerUploadStatus('JSON 파일을 선택하거나 폴더를 선택하세요.');
+}
+
+async function searchDbExplorerRecords() {
+  if (!state.explorer.selectedDatasetId) {
+    renderExplorer();
+    return;
+  }
+
+  state.explorer.isDbLoading = true;
+  state.explorer.errors = [];
+  renderExplorer();
+
+  try {
+    const params = new URLSearchParams({
+      datasetId: state.explorer.selectedDatasetId,
+      limit: '200'
+    });
+    if (state.explorer.selectedCountry) {
+      params.set('country', state.explorer.selectedCountry);
+    }
+    if (state.explorer.query.trim()) {
+      params.set('q', state.explorer.query.trim());
+    }
+    const response = await fetch(`/api/json-records?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`JSON record request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    state.explorer.items = (Array.isArray(body.records) ? body.records : []).map(createDbExplorerItem);
+    state.explorer.isDbLoaded = true;
+    setExplorerUploadStatus(`DB records loaded: ${(body.total ?? state.explorer.items.length).toLocaleString()}`);
+  } catch (error) {
+    state.explorer.items = [];
+    state.explorer.errors = [error instanceof Error ? error.message : String(error)];
+    setExplorerUploadStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.explorer.isDbLoading = false;
+    renderExplorer();
+  }
+}
+
+function createDbExplorerItem(record) {
+  const value = {
+    id: record.id,
+    sourceFilename: record.sourceFilename,
+    recognitionText: record.recognitionText,
+    language: record.language,
+    contentType: record.contentType,
+    tableVersion: record.tableVersion,
+    slotSummary: record.slotSummary,
+    datasetId: record.datasetId,
+    countryRegion: record.countryRegion,
+    valueKind: record.valueKind,
+    createdAt: record.createdAt
+  };
+  return {
+    ...value,
+    id: `db-${record.id}`,
+    sourceType: 'db',
+    value,
+    valueKind: record.valueKind ?? 'json'
+  };
+}
+
+async function loadMappingDatasets() {
+  state.mapping.datasets = await fetchDatasets('mapping_table');
+  renderDatasetOptions(elements.mappingDatasetSelect, state.mapping.datasets, 'Static fallback');
+  if (!elements.mappingDatasetSelect.value) {
+    const activeDataset = state.mapping.datasets.find((dataset) => dataset.isActive !== false) ?? state.mapping.datasets[0];
+    elements.mappingDatasetSelect.value = activeDataset?.id ? String(activeDataset.id) : '';
+  }
+  return elements.mappingDatasetSelect.value;
+}
+
+async function loadMappingDatasetRows(datasetId = elements.mappingDatasetSelect.value) {
+  if (!datasetId) {
+    return false;
+  }
+  state.mapping.isLoading = true;
+  state.mapping.error = '';
+  renderMappingWorkflow();
+
+  try {
+    const params = new URLSearchParams({ datasetId, limit: '500' });
+    const response = await fetch(`/api/mapping-rows?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`Mapping row request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    state.mapping.rows = Array.isArray(body.rows) ? body.rows : [];
+    state.mapping.source = state.mapping.datasets.find((dataset) => String(dataset.id) === String(datasetId))?.name ?? 'DB Mapping dataset';
+    state.mapping.isLoaded = true;
+    return true;
+  } catch (error) {
+    state.mapping.error = error instanceof Error ? error.message : String(error);
+    return false;
+  } finally {
+    state.mapping.isLoading = false;
+    renderMappingWorkflow();
+  }
+}
+
+async function loadStringResourceDatasets() {
+  try {
+    state.stringResource.datasets = await fetchDatasets('string_resource');
+    renderDatasetOptions(elements.stringResourceDatasetSelect, state.stringResource.datasets, 'Uploaded files');
+    if (!state.stringResource.selectedDatasetId) {
+      const activeDataset = state.stringResource.datasets.find((dataset) => dataset.isActive !== false) ?? state.stringResource.datasets[0];
+      state.stringResource.selectedDatasetId = activeDataset?.id ? String(activeDataset.id) : '';
+      elements.stringResourceDatasetSelect.value = state.stringResource.selectedDatasetId;
+    }
+    if (state.stringResource.selectedDatasetId) {
+      await loadStringResourceDatasetRows(state.stringResource.selectedDatasetId, state.stringResource.query);
+    }
+  } catch (error) {
+    state.stringResource.selectedDatasetId = '';
+    renderDatasetOptions(elements.stringResourceDatasetSelect, [], 'Uploaded files');
+    setStringResourceUploadStatus(error instanceof Error ? `DB unavailable: ${error.message}` : 'DB unavailable');
+  }
+}
+
+async function loadStringResourceDatasetRows(datasetId = state.stringResource.selectedDatasetId, query = state.stringResource.query) {
+  if (!datasetId) {
+    renderStringResource();
+    return;
+  }
+
+  state.stringResource.selectedDatasetId = datasetId;
+  state.stringResource.errors = [];
+  setStringResourceUploadStatus('Loading DB string resources.');
+
+  try {
+    const params = new URLSearchParams({ datasetId, limit: '500' });
+    if (query.trim()) {
+      params.set('q', query.trim());
+    }
+    const response = await fetch(`/api/string-resource-rows?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`String resource row request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    applyStringResourceDbRows(Array.isArray(body.rows) ? body.rows : [], datasetId);
+    setStringResourceUploadStatus(`DB string resources loaded: ${(body.total ?? state.stringResource.rows.length).toLocaleString()}`);
+  } catch (error) {
+    state.stringResource.errors = [error instanceof Error ? error.message : String(error)];
+    setStringResourceUploadStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    renderStringResource();
+  }
+}
+
+function applyStringResourceDbRows(rows, datasetId) {
+  const fileId = `string-resource-db-${datasetId}`;
+  const fileName = state.stringResource.datasets.find((dataset) => String(dataset.id) === String(datasetId))?.name ?? 'DB String Resource dataset';
+  const normalizedRows = rows.map((row, index) => ({
+    ...row,
+    id: row.id ?? `${fileId}-row-${index}`,
+    fileId,
+    fileName: row.fileName ?? row.sourceFilename ?? fileName,
+    rowNumber: row.rowNumber ?? index + 1,
+    sheetName: row.sheetName ?? 'DB rows'
+  }));
+  const summaries = [...new Map(normalizedRows.map((row) => [row.sheetName, row.sheetName])).values()]
+    .map((name) => ({
+      isCandidate: true,
+      name,
+      rowCount: normalizedRows.filter((row) => row.sheetName === name).length
+    }));
+
+  state.stringResource.files = [{
+    fileId,
+    fileName,
+    rows: normalizedRows,
+    sheetSummaries: summaries
+  }];
+  state.stringResource.rows = normalizedRows;
+  state.stringResource.expandedFileIds = new Set([fileId]);
+  state.stringResource.selectedSheetIds = new Set(summaries.map((summary) => stringResourceSheetId(fileId, summary.name)));
+}
+
+function clearDbStringResourceRows() {
+  state.stringResource.files = state.stringResource.files.filter((file) => !String(file.fileId).startsWith('string-resource-db-'));
+  state.stringResource.rows = state.stringResource.files.flatMap((file) => file.rows);
+  state.stringResource.expandedFileIds = new Set(
+    [...state.stringResource.expandedFileIds].filter((fileId) => !String(fileId).startsWith('string-resource-db-'))
+  );
+  state.stringResource.selectedSheetIds = new Set(
+    [...state.stringResource.selectedSheetIds].filter((sheetId) => !String(sheetId).startsWith('string-resource-db-'))
+  );
+  setStringResourceUploadStatus('다국어 문자열 리소스 엑셀을 선택하세요.');
+}
+
 async function loadMappingData() {
   if (state.mapping.isLoaded || state.mapping.isLoading) {
     renderMappingWorkflow();
@@ -2219,20 +2596,34 @@ async function loadMappingData() {
   renderMappingWorkflow();
 
   try {
-    const response = await fetch('./mapping-table-v3.3.19.json');
-    if (!response.ok) {
-      throw new Error(`Mapping data request failed: ${response.status}`);
+    let datasetId = '';
+    try {
+      datasetId = await loadMappingDatasets();
+    } catch (error) {
+      state.mapping.error = error instanceof Error ? error.message : String(error);
     }
-    const workbook = await response.json();
-    state.mapping.rows = normalizeMappingWorkbook(workbook);
-    state.mapping.source = workbook.source ?? 'Mapping table_v3.3.19.xlsx';
-    state.mapping.isLoaded = true;
+    if (datasetId && await loadMappingDatasetRows(datasetId)) {
+      return;
+    }
+    await loadStaticMappingData();
   } catch (error) {
     state.mapping.error = error instanceof Error ? error.message : String(error);
   } finally {
     state.mapping.isLoading = false;
     renderMappingWorkflow();
   }
+}
+
+async function loadStaticMappingData() {
+  const response = await fetch('./mapping-table-v3.3.19.json');
+  if (!response.ok) {
+    throw new Error(`Mapping data request failed: ${response.status}`);
+  }
+  const workbook = await response.json();
+  state.mapping.rows = normalizeMappingWorkbook(workbook);
+  state.mapping.source = workbook.source ?? 'Mapping table_v3.3.19.xlsx';
+  state.mapping.error = '';
+  state.mapping.isLoaded = true;
 }
 
 function renderMappingWorkflow() {
@@ -2631,7 +3022,10 @@ function renderExplorer() {
   const totalCount = state.explorer.items.length;
   const errorCount = state.explorer.errors.length;
   const searchTerms = parseExplorerSearchTerms(state.explorer.query);
-  const filteredItems = searchTerms.length > 0
+  const isDbMode = Boolean(state.explorer.selectedDatasetId);
+  const filteredItems = isDbMode
+    ? state.explorer.items
+    : searchTerms.length > 0
     ? filterExplorerItems(state.explorer.items, state.explorer.query)
     : [];
 
@@ -2642,23 +3036,28 @@ function renderExplorer() {
   elements.clearExplorerButton.disabled = totalCount === 0 && errorCount === 0;
 
   renderExplorerSuggestions();
-  renderExplorerTable(filteredItems, searchTerms);
+  renderExplorerTable(filteredItems, searchTerms, isDbMode);
   renderExplorerRegisteredFiles();
   renderExplorerFileDrawer();
   renderExplorerModal();
 }
 
-function renderExplorerTable(items, searchTerms) {
+function renderExplorerTable(items, searchTerms, isDbMode = false) {
   elements.explorerTableBody.replaceChildren();
   elements.explorerTableShell.hidden = true;
   elements.explorerEmptyState.hidden = false;
+
+  if (state.explorer.isDbLoading) {
+    elements.explorerEmptyState.textContent = 'Loading DB records.';
+    return;
+  }
 
   if (state.explorer.items.length === 0) {
     elements.explorerEmptyState.textContent = 'JSON 파일 또는 폴더를 먼저 등록하세요.';
     return;
   }
 
-  if (searchTerms.length === 0) {
+  if (!isDbMode && searchTerms.length === 0) {
     elements.explorerEmptyState.textContent = 'recognitionText 또는 파일명 등으로 검색하세요.';
     return;
   }

@@ -184,6 +184,20 @@
 
       <section class="explorer-workspace" aria-label="JSON Explorer workspace">
         <div class="explorer-toolbar" id="explorerToolbar" aria-label="JSON Explorer controls">
+          <div class="explorer-filter-group" aria-label="JSON DB filters">
+            <label class="explorer-filter-field" for="explorerDatasetSelect">
+              <span>Dataset</span>
+              <select id="explorerDatasetSelect">
+                <option value="">Local files</option>
+              </select>
+            </label>
+            <label class="explorer-filter-field" for="explorerCountrySelect">
+              <span>Country</span>
+              <select id="explorerCountrySelect" disabled>
+                <option value="">All countries</option>
+              </select>
+            </label>
+          </div>
           <div class="upload-strip">
             <label class="file-picker" for="explorerFileInput">JSON 파일 선택</label>
             <input id="explorerFileInput" type="file" accept=".json,application/json" multiple>
@@ -351,6 +365,14 @@
       </header>
 
       <section class="mapping-workspace" aria-label="Mapping Table Explorer workspace">
+        <div class="mapping-dataset-toolbar" aria-label="Mapping Table DB filters">
+          <label class="explorer-filter-field" for="mappingDatasetSelect">
+            <span>Dataset</span>
+            <select id="mappingDatasetSelect">
+              <option value="">Static fallback</option>
+            </select>
+          </label>
+        </div>
         <section class="mapping-workflow" aria-label="Mapping Table search workflow">
           <section class="mapping-search-panel" aria-live="polite">
             <div class="result-head">
@@ -434,6 +456,14 @@
 
       <section class="string-resource-workspace" aria-label="String Resource Explorer workspace">
         <div class="string-resource-toolbar" aria-label="String Resource Explorer controls">
+          <div class="string-resource-filter-group" aria-label="String Resource DB filters">
+            <label class="explorer-filter-field" for="stringResourceDatasetSelect">
+              <span>Dataset</span>
+              <select id="stringResourceDatasetSelect">
+                <option value="">Uploaded files</option>
+              </select>
+            </label>
+          </div>
           <div class="upload-strip">
             <label class="file-picker" for="stringResourceFileInput">엑셀 파일 선택</label>
             <input id="stringResourceFileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple>
